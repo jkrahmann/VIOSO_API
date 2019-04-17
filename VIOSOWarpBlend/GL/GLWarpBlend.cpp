@@ -93,7 +93,7 @@ GLWarpBlend::GLWarpBlend():
 		)
         memcpy(&m_type4cc, "OGL\0", 4);
 	else
-		throw VWB_ERROR_NOT_IMPLEMENTED;
+		throw (VWB_int)VWB_ERROR_NOT_IMPLEMENTED;
 }
 
 GLWarpBlend::~GLWarpBlend()
@@ -496,10 +496,12 @@ VWB_ERROR GLWarpBlend::GetViewProjection( VWB_float* eye, VWB_float* rot, VWB_fl
 		else
 			V = T * m_mViewIG;
 
+		VWB_float clip[6];
+		getClip( e, clip );
 		if( m_bRH )
-			P =  VWB_MAT44f::PRH( m_viewSizes, nearDist, farDist, screenDist, e );
+			P =  VWB_MAT44f::GLFrustumRH( clip );
 		else
-			P =  VWB_MAT44f::PLH( m_viewSizes, nearDist, farDist, screenDist, e );
+			P =  VWB_MAT44f::GLFrustumLH( clip );
 
 		m_mVP = P.Transposed() * m_mVP;
 
@@ -511,6 +513,62 @@ VWB_ERROR GLWarpBlend::GetViewProjection( VWB_float* eye, VWB_float* rot, VWB_fl
 		if( pProj )
 		{
 			P.SetPtr( pProj );
+		}
+	}
+	return ret;
+}
+
+// set up the view matrix,
+// use the same matrices as in your program, construct a view matrix relative to the actual screen
+// use the same units (usually millimeters) for the screen and the scene
+VWB_ERROR GLWarpBlend::GetViewClip( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pClip )
+{
+	VWB_ERROR ret = VWB_Warper_base::GetViewClip( eye, rot, pView, pClip );
+	if( VWB_ERROR_NONE == ret )
+	{
+		VWB_MAT44f V; // the view matrix to return 
+		VWB_MAT44f P; // the projection matrix to return 
+
+		// we transform the dynamic eye-point to the constant view:
+
+		// copy eye coordinate to eb
+		VWB_VEC3f e( (float)m_ep.x, (float)m_ep.y, (float)m_ep.z );
+
+		// rotation matrix from angles
+		VWB_MAT44f R = VWB_MAT44f::R( (VWB_float)m_ep.pitch, (VWB_float)m_ep.yaw, (VWB_float)m_ep.roll );
+
+		// add eye offset rotated to platform
+		if( 0 != this->eye[0] || 0 != this->eye[1] || 0 != this->eye[2] )
+			e += R * VWB_VEC3f::ptr( this->eye );
+
+		// translate to local coordinates
+		e = m_mViewIG * e;
+
+		VWB_MAT44f T = VWB_MAT44f::T( -e );
+		m_mVP = T * m_mViewIG * m_mBaseI;
+
+		if( bTurnWithView )
+			V = m_mViewIG * R.Transposed();
+		else
+			V = T * m_mViewIG;
+
+		VWB_float clip[6];
+		getClip( e, clip );
+		if( m_bRH )
+			P = VWB_MAT44f::GLFrustumRH( clip );
+		else
+			P = VWB_MAT44f::GLFrustumLH( clip );
+
+		m_mVP = P.Transposed() * m_mVP;
+
+		if( pView )
+		{
+			V.SetPtr( pView );
+		}
+
+		if( pClip )
+		{
+			memcpy( pClip, clip, sizeof( clip ) );
 		}
 	}
 	return ret;

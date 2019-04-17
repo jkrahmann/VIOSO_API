@@ -49,6 +49,7 @@ public:
 	virtual VWB_ERROR Init( VWB_WarpBlendSet& wbs );
 
 	virtual VWB_ERROR GetViewProjection( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pProj );
+	virtual VWB_ERROR GetViewClip( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pClip );
 
 	virtual VWB_ERROR SetViewProjection( VWB_float const* pView, VWB_float const* pProj );
 

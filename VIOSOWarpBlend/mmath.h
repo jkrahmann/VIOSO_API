@@ -470,7 +470,7 @@ struct VWB_MATRIX
 
 	_inline_ static VWB_MATRIX PRHT( VWB_VECTOR4<_T> const& viewsizes, _T nearDist, _T farDist, _T screenDist, VWB_VECTOR3<_T> eye )
 	{
-		return VWB_MATRIX( 
+		return VWB_MATRIX(
 			(_T)2 * ( screenDist + eye[2] ) / ( viewsizes[2] + viewsizes[0] ),
 			(_T)0,
 			(_T)0,
@@ -494,7 +494,7 @@ struct VWB_MATRIX
 
 	_inline_ static VWB_MATRIX PRH( VWB_VECTOR4<_T> viewsizes, _T nearDist, _T farDist, _T screenDist, VWB_VECTOR3<_T> eye )
 	{
-		return VWB_MATRIX (
+		return VWB_MATRIX(
 			/* 0*/ (_T)2 * ( screenDist + eye[2] ) / ( viewsizes[2] + viewsizes[0] ),
 			/* 1*/ (_T)0,
 			/* 2*/ (_T)0,
@@ -517,7 +517,7 @@ struct VWB_MATRIX
 	}
 	_inline_ static VWB_MATRIX PLH( VWB_VECTOR4<_T> viewsizes, _T nearDist, _T farDist, _T screenDist, VWB_VECTOR3<_T> eye )
 	{
-		return VWB_MATRIX (
+		return VWB_MATRIX(
 			/* 0*/ (_T)2 * ( screenDist - eye[2] ) / ( viewsizes[2] + viewsizes[0] ),
 			/* 1*/ (_T)0,
 			/* 2*/ (_T)0,
@@ -538,6 +538,104 @@ struct VWB_MATRIX
 			/*14*/ (_T)2 * nearDist * farDist / ( nearDist - farDist ),
 			/*15*/ (_T)0 );
 	}
+
+
+
+	_inline_ static VWB_MATRIX DXFrustumLH( _T const* pClip )
+	{
+		return VWB_MATRIX(
+			(_T)2 * pClip[4] / ( pClip[2] + pClip[0] ),
+			(_T)0,
+			(_T)0,
+			(_T)0,
+
+			(_T)0,
+			(_T)2 * pClip[4] / ( pClip[3] + pClip[1] ),
+			(_T)0,
+			(_T)0,
+
+			(_T)( pClip[0] - pClip[2] ) / ( pClip[0] + pClip[2] ),
+			(_T)( pClip[1] - pClip[3] ) / ( pClip[1] + pClip[3] ),
+			(_T)( pClip[5] + pClip[4] ) / ( pClip[5] - pClip[4] ),
+			(_T)1,
+
+			(_T)0,
+			(_T)0,
+			(_T)pClip[4] * pClip[5] / ( pClip[4] - pClip[5] ),
+			(_T)0 );
+	}
+
+	_inline_ static VWB_MATRIX DXFrustumRH( _T const* pClip )
+	{
+		return VWB_MATRIX(
+			(_T)2 * pClip[4] / ( pClip[2] + pClip[0] ),
+			(_T)0,
+			(_T)0,
+			(_T)0,
+
+			(_T)0,
+			(_T)2 * pClip[4] / ( pClip[3] + pClip[1] ),
+			(_T)0,
+			(_T)0,
+
+			(_T)( pClip[2] - pClip[0] ) / ( pClip[0] + pClip[2] ),
+			(_T)( pClip[3] - pClip[1] ) / ( pClip[1] + pClip[3] ),
+			(_T)( pClip[5] + pClip[4] ) / ( pClip[4] - pClip[5] ),
+			(_T)-1,
+
+			(_T)0,
+			(_T)0,
+			(_T)pClip[4] * pClip[5] / ( pClip[5] - pClip[4] ),
+			(_T)0 );
+	}
+
+	_inline_ static VWB_MATRIX GLFrustumRH( _T const* pClip )
+	{
+		return VWB_MATRIX(
+			/* 0*/ (_T)2 * pClip[4] / ( pClip[2] + pClip[0] ),
+			/* 1*/ (_T)0,
+			/* 2*/ (_T)0,
+			/* 3*/ (_T)0,
+
+			/* 4*/ (_T)0,
+			/* 5*/ (_T)2 * pClip[4] / ( pClip[3] + pClip[1] ),
+			/* 6*/ (_T)0,
+			/* 7*/ (_T)0,
+
+			/* 8*/ (_T)( pClip[2] - pClip[0] ) / ( pClip[0] + pClip[2] ),
+			/* 9*/ (_T)( pClip[3] - pClip[1] ) / ( pClip[1] + pClip[3] ),
+			/*10*/ (_T)( pClip[5] + pClip[4] ) / ( pClip[4] - pClip[5] ),
+			/*11*/ (_T)-1,
+
+			/*12*/ (_T)0,
+			/*13*/ (_T)0,
+			/*14*/ (_T)2 * pClip[4] * pClip[5] / ( pClip[4] - pClip[5] ),
+			/*15*/ (_T)0 );
+	}
+	_inline_ static VWB_MATRIX GLFrustumLH( _T const* pClip )
+	{
+		return VWB_MATRIX(
+			/* 0*/ (_T)2 * pClip[4] / ( pClip[2] + pClip[0] ),
+			/* 1*/ (_T)0,
+			/* 2*/ (_T)0,
+			/* 3*/ (_T)0,
+
+			/* 4*/ (_T)0,
+			/* 5*/ (_T)2 * pClip[4] / ( pClip[3] + pClip[1] ),
+			/* 6*/ (_T)0,
+			/* 7*/ (_T)0,
+
+			/* 8*/ (_T)( pClip[0] - pClip[2] ) / ( pClip[0] + pClip[2] ),
+			/* 9*/ (_T)( pClip[1] - pClip[3] ) / ( pClip[1] + pClip[3] ),
+			/*10*/ (_T)( pClip[5] + pClip[4] ) / ( pClip[5] - pClip[4] ),
+			/*11*/ (_T)1,
+
+			/*12*/ (_T)0,
+			/*13*/ (_T)0,
+			/*14*/ (_T)2 * pClip[4] * pClip[5] / ( pClip[4] - pClip[5] ),
+			/*15*/ (_T)0 );
+	}
+
 
 	_inline_ _T& operator()(unsigned int row, unsigned int col) { return m[row][col]; }
 	_inline_ _T const& operator()(unsigned int row, unsigned int col) const { return m[row][col]; }

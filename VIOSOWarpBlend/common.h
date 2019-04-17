@@ -84,13 +84,16 @@ public:
     * @param [opt_INOUT] eye, if eye point provider present, receives, else set the new eye position
     * @param [opt_INOUT] rot, if eye point provider present, receives, else set the new eye rotation angles
     * @param [opt_OUT] pView, if not NULL it gets the updated view matrix to translate and rotate into the viewer's perspective
-    * @param [opt_OUT] pProj, if not NULL it gets the updated projection matrix
-    * @return VWB_ERROR_NONE on success, otherwise @see VWB_ERROR
+	* @param [opt_OUT] pProj, if not NULL it gets the updated projection matrix
+    * @param [opt_OUT] pClip, if not NULL it gets the updated clip
+	* @param [OUT]			pClip	it gets the updated clip planes, left, top, right, bottom, near, far
+	* @return VWB_ERROR_NONE on success, otherwise @see VWB_ERROR
 	* @remarks If EyePointProvider is used, the eye point is set by calling it's getEye function. eye and rot are set to that if not NULL.
 	* Else, if eye and rot are not NULL, values taken from here.
 	* Else eye and rot are set to 0-vectors.
 	* The internal view and projection matrices are calculated to render. You should set pView and pProj to get these matrices for rendering, if updated.*/
 	virtual VWB_ERROR GetViewProjection( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pProj );		// 
+	virtual VWB_ERROR GetViewClip( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pClip );		// 
 
 	/** sets internal projection and view matrix
     * @param view    the view matrix
@@ -101,7 +104,7 @@ public:
     /** render a warped and blended source texture into the current back buffer
     * @param [in,opt] inputTexture    the source texture, if set to NULL, a backbuffer copy is used as input
     * @return VWB_ERROR_NONE on success, otherwise @see VWB_ERROR */
-	virtual VWB_ERROR Render( VWB_param inputTexture, VWB_uint stateMask ) = 0;
+	virtual VWB_ERROR Render( VWB_param inputTexture, VWB_uint stateMask );
 
 	virtual VWB_ERROR getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMesh& mesh );
 
@@ -114,6 +117,8 @@ protected:
 	void Defaults();
 	/// update view parameters from warp bland set
 	VWB_ERROR AutoView(	VWB_WarpBlend const& wb );
+	// calculate clipping planes
+	void getClip( VWB_VEC3f const& e, VWB_float* pClip );
 };
 
 class Dummywarper : public VWB_Warper_base
@@ -128,6 +133,7 @@ public:
 	virtual VWB_ERROR Init( VWB_WarpBlendSet& wbs );
 
 	virtual VWB_ERROR GetViewProjection( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pProj );
+	virtual VWB_ERROR GetViewClip( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pClip );
 
 	virtual VWB_ERROR SetViewProjection( VWB_float const* pView, VWB_float const* pProj );
 

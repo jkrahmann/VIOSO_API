@@ -256,6 +256,7 @@
     <ClInclude Include="GL\GLext.h" />
     <ClInclude Include="GL\GLWarpBlend.h" />
     <ClInclude Include="GL\pixelshader.h" />
+    <ClInclude Include="JASONWrapper.h" />
     <ClInclude Include="logging.h" />
     <ClInclude Include="mmath.h" />
     <ClInclude Include="Net.h" />
@@ -271,6 +272,7 @@
     <ClCompile Include="DX\DX9WarpBlend.cpp" />
     <ClCompile Include="DX\DXWarpBlend.cpp" />
     <ClCompile Include="GL\GLWarpBlend.cpp" />
+    <ClCompile Include="JASONWrapper.cpp" />
     <ClCompile Include="LoadDAE.cpp" />
     <ClCompile Include="LoadVWF.cpp" />
     <ClCompile Include="logging.cpp" />

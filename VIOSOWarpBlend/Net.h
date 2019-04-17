@@ -4,6 +4,7 @@
 #include "common.h"
 #include "socket.h"
 #include <map>
+#include <queue>
 
 class VWBRemoteCommand
 {
@@ -39,7 +40,7 @@ public:
 class VWBTCPConnection : public TCPConnection
 {
 public:
-	typedef std::vector<HttpRequest> RequestList;
+	typedef std::queue<HttpRequest> RequestList;
 protected:
 	VWB_Warper* m_pWarper;
 	int m_state;
@@ -60,6 +61,15 @@ public:
 	int getState() const { return m_state | ( m_bPendingSend ? STATE_WRITEPENDING : 0 ); }
 	int readRequest();
 	int sendResponse();
+	bool hasRequest() { return !m_req.empty(); }
+	void popRequest() 
+	{ 
+		if( !m_req.empty() ) m_req.pop(); 
+	}
+	HttpRequest const* headRequestPtr()
+	{
+		return m_req.empty() ? NULL : &m_req.front();
+	}
 private:
 	virtual int cbRead( Server* pServer );
 	virtual int cbError( Server* pServer, int err );

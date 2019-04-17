@@ -130,7 +130,7 @@ int VWBTCPConnection::cbRead( Server* pServer )
 { // this is always called from within lock
 	m_iCalls++;
 	if( m_req.empty() ) // initial 
-		m_req.push_back( HttpRequest(*this) );
+		m_req.push( HttpRequest(*this) );
 	else
 		m_req.front().parseRequest( *this );
 	HttpRequest::STATE r = m_req.front();
@@ -158,7 +158,7 @@ int VWBTCPConnection::cbRead( Server* pServer )
 	if( HttpRequest::STATE_PARSED == r )
 	{
 		logStr( 2, "INFO: Net receive request %s\n", m_req.front().request.c_str() );
-		m_req.push_back( HttpRequest() );
+		m_req.push( HttpRequest() );
 		return 1;
 	}
 	return 0;

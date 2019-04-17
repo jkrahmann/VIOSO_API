@@ -21,6 +21,7 @@ typedef uint64_t VWB_ull; /// a 64bit unsigned integer
 typedef float VWB_float;	/// a single precision floating point number
 typedef double VWB_double;	/// a double precision floating point number
 
+#pragma pack( push, 4 )
 typedef struct VWB_size { VWB_int cx, cy; } VWB_size; /// a size
 typedef struct VWB_rect { VWB_int left, top, right, bottom; } VWB_rect; /// a size
 
@@ -62,12 +63,9 @@ typedef enum VWB_STATEMASK
 	VWB_STATEMASK_DEFAULT = VWB_STATEMASK_VERTEX_BUFFER | VWB_STATEMASK_INPUT_LAYOUT | VWB_STATEMASK_PRIMITIVE_TOPOLOGY | VWB_STATEMASK_RASTERSTATE
 } VWB_STATEMASK;
 
-#define VWB_logString( level, str ) ( VWB__logString ? VWB__logString( level, str ) : VWB_ERROR_GENERIC )
-
 /** The warper
 * @remarks All changes you do before calling VWB_Init are considered
 */
-#pragma pack( push, 4 )
 struct VWB_Warper
 {
 	/// this is where this ini file is, this defaults to ""
