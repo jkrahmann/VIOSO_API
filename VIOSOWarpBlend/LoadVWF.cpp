@@ -676,7 +676,7 @@ VWB_ERROR CreateDummyVWF( VWB_WarpBlendSet& set, char const* path )
 		static const VWB_WarpFileHeader4 wfh = {
 			{'v','w','f','0'},
 			sizeof( VWB_WarpFileHeader4 ),
-			FLAG_SP_WARPFILE_HEADER_BLENDV3|FLAG_SP_WARPFILE_HEADER_CALIBRATION_BASE_TYP|FLAG_SP_WARPFILE_HEADER_OFFSET|FLAG_SP_WARPFILE_HEADER_BLACKLEVEL_CORR,
+			FLAG_SP_WARPFILE_HEADER_BLENDV2|FLAG_SP_WARPFILE_HEADER_CALIBRATION_BASE_TYP|FLAG_SP_WARPFILE_HEADER_OFFSET|FLAG_SP_WARPFILE_HEADER_BLACKLEVEL_CORR,
 			0x10001,
 			256*256*sizeof( VWB_WarpRecord ),
 			256,	256,
@@ -700,9 +700,9 @@ VWB_ERROR CreateDummyVWF( VWB_WarpBlendSet& set, char const* path )
 		};
 		set.back()->header = wfh;
 		strcpy( set.back()->path, pp );
-		set.back()->pBlend3 = new VWB_BlendRecord3[256*256];
-		for( VWB_BlendRecord3* pB = set.back()->pBlend3, *pBE = pB + 256 * 256; pB != pBE; pB++ )
-			pB->r = pB->g = pB->b = pB->a = 1.0f;
+		set.back()->pBlend2 = new VWB_BlendRecord2[256*256];
+		for( VWB_BlendRecord2* pB = set.back()->pBlend2, *pBE = pB + 256 * 256; pB != pBE; pB++ )
+			pB->r = pB->g = pB->b = pB->a = 65535;
 
 		VWB_WarpRecord* pW = set.back()->pWarp = new VWB_WarpRecord[256*256];
 		for( int y = 0; y != 256; y++ )

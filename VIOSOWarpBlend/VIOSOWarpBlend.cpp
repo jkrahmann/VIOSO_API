@@ -859,13 +859,12 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 				pD->b = VWB_word( pow( VWB_float( p->b ) / 255.0f, g ) * 65535.0f );
 				pD->a = VWB_word( p->a ) * 255;
 			}
-			wb.header.flags|=  FLAG_SP_WARPFILE_HEADER_BLENDV3;
 			wb.header.flags|= FLAG_SP_WARPFILE_HEADER_BLENDV2;
 			delete[] wb.pBlend;
 			wb.pBlend2 = pDst;
 		}
 	}
-	else if( !(wb.header.flags & FLAG_SP_WARPFILE_HEADER_BLENDV3) )
+	else if( !(wb.header.flags & FLAG_SP_WARPFILE_HEADER_BLENDV2) )
 	{ // change to VWB_BlendRecord2 anyway...
 		if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_BLENDV3 )
 		{
@@ -899,9 +898,9 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 			wb.pBlend2 = pDst;
 		}
 	}
-	// put clipping channel of warp to a channel of blend
 
-	VWB_WarpRecord* pW = wb.pWarp;
+	// put clipping channel of warp to a channel of blend
+		VWB_WarpRecord* pW = wb.pWarp;
 	if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D )
 	{
 		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
@@ -919,12 +918,13 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 
 	if( 0 == ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) )
 	{
-		// readjust bounds, init with opposite extremum
+		// in case of 2D mapping
+		// calculate bounds, init with opposite extremum
 		wb.header.vPartialCnt[0] = 1; // left
 		wb.header.vPartialCnt[1] = 1; // top
 		wb.header.vPartialCnt[2] = 0; // right
 		wb.header.vPartialCnt[3] = 0; // bottom
-		VWB_BlendRecord3* pB = wb.pBlend3;
+		VWB_BlendRecord2* pB = wb.pBlend2;
 		for( VWB_WarpRecord* pW = wb.pWarp, *pWE = wb.pWarp + m_sizeMap.cx * m_sizeMap.cy; pW != pWE; pW++, pB++ )
 		{
 			if(0.5f <= pW->z && ( 0 < pB->r || 0 < pB->g || 0 < pB->b))
@@ -954,6 +954,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 		}
 	}
 
+	// initialize eye provider, in case it is stated
 	if( eyeProvider[0] )
 	{
 		char p[MAX_PATH] = {0};
@@ -988,6 +989,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 		logStr( 1, "Eye point provider \"%s\" successfully initialized.\n", p );
 	}
 
+	// do auto calculations
 	VWB_MAT44f S = VWB_MAT44f::I(); // scaling matrix
 	if( m_bDynamicEye )
 	{
@@ -1009,7 +1011,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 		// transfer warp mask to blend and collect dimensions
 		VWB_BOXf b = VWB_BOXf::M();
 		VWB_WarpRecord* pW = wb.pWarp;
-		for( VWB_BlendRecord3* p = wb.pBlend3, *pE = wb.pBlend3 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
+		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
 		{
 			if( 0.5 > pW->w )
 			{
@@ -1044,7 +1046,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 	{
 		// transfer warp mask to blend
 		VWB_WarpRecord* pW = wb.pWarp;
-		for( VWB_BlendRecord3* p = wb.pBlend3, *pE = wb.pBlend3 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
+		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
 		{
 			if( 0.5 > pW->z )
 			{
@@ -1260,7 +1262,7 @@ VWB_ERROR VWB_Warper_base::AutoView( VWB_WarpBlend const& wb )
 // find x and y axis from scan
 	// find corners
 	VWB_WarpRecord* pW = wb.pWarp;
-	VWB_BlendRecord3* pB = wb.pBlend3;
+	VWB_BlendRecord2* pB = wb.pBlend2;
 	int wh = wb.header.width / 2;
 	int hh = wb.header.height / 2;
 	VWB_WarpRecord *ptl = NULL, *ptr = NULL, *pbl = NULL, *pbr = NULL; // the extremal corners
@@ -1364,7 +1366,7 @@ VWB_ERROR VWB_Warper_base::AutoView( VWB_WarpBlend const& wb )
 	VWB_BOXd b( VWB_VEC3d(DBL_MAX, DBL_MAX, DBL_MAX), VWB_VEC3d(-DBL_MAX, -DBL_MAX, -DBL_MAX) );
 
 	pW = wb.pWarp;
-	pB = wb.pBlend3;
+	pB = wb.pBlend2;
 	double cnt = 0;
 
 	double l = autoViewC * abs(screenDist) / 4;
@@ -1536,6 +1538,7 @@ VWB_ERROR Dummywarper::Init( VWB_WarpBlendSet& wbs )
 	VWB_ERROR err = VWB_Warper_base::Init(wbs);
 	if( VWB_ERROR_NONE == err )
 	{
+		// do a deep copy of the mappings, to keep
 		m_wb = *wbs[calibIndex];
 		int nRecords = m_wb.header.width * m_wb.header.height;
 		if( m_wb.pWarp )
@@ -1543,10 +1546,10 @@ VWB_ERROR Dummywarper::Init( VWB_WarpBlendSet& wbs )
 			m_wb.pWarp = new VWB_WarpRecord[nRecords];
 			memcpy( m_wb.pWarp, wbs[calibIndex]->pWarp, nRecords * sizeof( VWB_WarpRecord ) );
 		}
-		if( m_wb.pBlend3 )
+		if( m_wb.pBlend2 )
 		{
-			m_wb.pBlend3 = new VWB_BlendRecord3[nRecords];
-			memcpy( m_wb.pBlend3, wbs[calibIndex]->pBlend3, nRecords* sizeof( VWB_BlendRecord3 ) );
+			m_wb.pBlend2 = new VWB_BlendRecord2[nRecords];
+			memcpy( m_wb.pBlend2, wbs[calibIndex]->pBlend2, nRecords* sizeof( VWB_BlendRecord2 ) );
 		}
 		if( m_wb.pBlack )
 		{
@@ -1682,7 +1685,7 @@ VWB_ERROR Dummywarper::Render( VWB_param inputTexture, VWB_uint stateMask )
 
 _inline_ VWB_uint getTrianglePatch( 
 	VWB_WarpBlend& out, VWB_float& x, VWB_float& y,
-	VWB_WarpRecord* pW, VWB_BlendRecord3* pB, VWB_BlendRecord* pBl, VWB_BlendRecord* pWh,
+	VWB_WarpRecord* pW, VWB_BlendRecord2* pB, VWB_BlendRecord* pBl, VWB_BlendRecord* pWh,
 	VWB_int dx1, VWB_int dy1, VWB_int dx2, VWB_int dy2 )
 {
 	// find uv coordinate range
@@ -1723,12 +1726,12 @@ _inline_ VWB_uint getTrianglePatch(
 			{
 				VWB_uint o = VWB_int(u)+out.header.width*VWB_int(v);
 				VWB_VEC3f::Bary2Cart( VWB_VEC3f( x,y,1 ), VWB_VEC3f( x+dx1,y+dy1,1 ), VWB_VEC3f( x+dx2,y+dy2,1 ), l, VWB_VEC3f::ptr(&out.pWarp[o].x) );
-				if( pB && out.pBlend3 )
+				if( pB && out.pBlend2 )
 				{
-					out.pBlend3[o].r = l.x * pB->r + l.y * (pB + d1)->r + l.z * (pB + d2)->r;
-					out.pBlend3[o].g = l.x * pB->g + l.y * (pB + d1)->g + l.z * (pB + d2)->g;
-					out.pBlend3[o].b = l.x * pB->b + l.y * (pB + d1)->b + l.z * (pB + d2)->b;
-					out.pBlend3[o].a = l.x * pB->a + l.y * (pB + d1)->a + l.z * (pB + d2)->a;
+					out.pBlend2[o].r = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->r + l.y * ( pB + d1 )->r + l.z * ( pB + d2 )->r ));
+					out.pBlend2[o].g = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->g + l.y * ( pB + d1 )->g + l.z * ( pB + d2 )->g ));
+					out.pBlend2[o].b = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->b + l.y * ( pB + d1 )->b + l.z * ( pB + d2 )->b ));
+					out.pBlend2[o].a = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->a + l.y * ( pB + d1 )->a + l.z * ( pB + d2 )->a ));
 				}
 				if( pBl && out.pBlack )
 				{
@@ -1753,7 +1756,7 @@ _inline_ VWB_uint getTrianglePatch(
 
 _inline_ VWB_uint getTrianglePatchA( 
 	VWB_WarpBlend& out, VWB_float& x, VWB_float& y,
-	VWB_WarpRecord* pW, VWB_BlendRecord3* pB, VWB_BlendRecord* pBl, VWB_BlendRecord* pWh,
+	VWB_WarpRecord* pW, VWB_BlendRecord2* pB, VWB_BlendRecord* pBl, VWB_BlendRecord* pWh,
 	VWB_int dx1, VWB_int dy1, VWB_int dx2, VWB_int dy2 )
 {
 	// find uv coordinate range
@@ -1798,10 +1801,10 @@ _inline_ VWB_uint getTrianglePatchA(
 			{
 				VWB_uint o = VWB_int(u)+out.header.width*VWB_int(v);
 				VWB_VEC3f::Bary2Cart( VWB_VEC3f( x,y,1 ), VWB_VEC3f( x+1,y,1 ), VWB_VEC3f( x+1,y+1,1 ), l, VWB_VEC3f::ptr(&out.pWarp[o].x) );
-				out.pBlend3[o].r = l.x * pB->r + l.y * (pB + d1)->r + l.z * (pB + d2)->r;
-				out.pBlend3[o].g = l.x * pB->g + l.y * (pB + d1)->g + l.z * (pB + d2)->g;
-				out.pBlend3[o].b = l.x * pB->b + l.y * (pB + d1)->b + l.z * (pB + d2)->b;
-				out.pBlend3[o].a = l.x * pB->a + l.y * (pB + d1)->a + l.z * (pB + d2)->a;
+				out.pBlend2[o].r = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->r + l.y * ( pB + d1 )->r + l.z * ( pB + d2 )->r ) );
+				out.pBlend2[o].g = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->g + l.y * ( pB + d1 )->g + l.z * ( pB + d2 )->g ) );
+				out.pBlend2[o].b = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->b + l.y * ( pB + d1 )->b + l.z * ( pB + d2 )->b ) );
+				out.pBlend2[o].a = (VWB_word)MAX( 65535, (VWB_int)MIN( 0, l.x * pB->a + l.y * ( pB + d1 )->a + l.z * ( pB + d2 )->a ) );
 				conv++;
 			}
 		}
@@ -1825,10 +1828,10 @@ VWB_ERROR invertWB( VWB_WarpBlend const& in, VWB_WarpBlend& out )
 	else
 		return VWB_ERROR_PARAMETER;
 
-	if( out.pBlend3 )
+	if( out.pBlend2 )
 	{
-		out.pBlend3 = new VWB_BlendRecord3[nRecords];
-		memset( out.pBlend3, 0, nRecords* sizeof( VWB_BlendRecord3 ) );
+		out.pBlend2 = new VWB_BlendRecord2[nRecords];
+		memset( out.pBlend2, 0, nRecords* sizeof( VWB_BlendRecord2 ) );
 	}
 	if( out.pBlack )
 	{
@@ -1844,7 +1847,7 @@ VWB_ERROR invertWB( VWB_WarpBlend const& in, VWB_WarpBlend& out )
 	// fill from triangles...
 	VWB_uint conv = 0;
 	VWB_WarpRecord   *pW  = in.pWarp  ;
-	VWB_BlendRecord3 *pB  = in.pBlend3;
+	VWB_BlendRecord2 *pB  = in.pBlend2;
 	VWB_BlendRecord* pBl = in.pBlack;
 	VWB_BlendRecord* pWh = in.pWhite;
 	VWB_WarpRecord const* pWE = pW + nRecords - w;
@@ -1871,7 +1874,7 @@ VWB_ERROR invertWB( VWB_WarpBlend const& in, VWB_WarpBlend& out )
 // |  /
 // P3
 //
-	if( out.pBlack || out.pWhite || !out.pBlend3 )
+	if( out.pBlack || out.pWhite || !out.pBlend2 )
 	{
 		for( VWB_float y = 0; pWE != pW; pW++, pB++, pBl++, pWh++, y++ )
 		{
@@ -1955,7 +1958,7 @@ VWB_ERROR invertWB( VWB_WarpBlend const& in, VWB_WarpBlend& out )
 
 	// fill holes
 	VWB_WarpRecord   *pOutW  = out.pWarp   + w + 1;
-	VWB_BlendRecord3 *pOutB  = out.pBlend3 + w + 1;
+	VWB_BlendRecord2 *pOutB  = out.pBlend2 + w + 1;
 	VWB_BlendRecord  *pOutBl = out.pBlack  + w + 1;
 	VWB_BlendRecord  *pOutWh = out.pWhite  + w + 1;
 	for( VWB_WarpRecord const* pOutWE = pOutW + nRecords - 2 * w; pOutWE != pOutW; pOutW+= 2, pOutB+= 2, pOutBl+= 2, pOutWh+= 2 )
@@ -1974,12 +1977,12 @@ VWB_ERROR invertWB( VWB_WarpBlend const& in, VWB_WarpBlend& out )
 					pOutW->x = ( pW1->x + pW2->x ) / 2;
 					pOutW->y = ( pW1->y + pW2->y ) / 2;
 					pOutW->z = ( pW1->z + pW2->z ) / 2;
-					if( out.pBlend3 )
+					if( out.pBlend2 )
 					{
-						pOutB->r = ( (pOutB-1)->r + (pOutB+1)->r ) / 2;
-						pOutB->g = ( (pOutB-1)->g + (pOutB+1)->g ) / 2;
-						pOutB->b = ( (pOutB-1)->b + (pOutB+1)->b ) / 2;
-						pOutB->a = ( (pOutB-1)->a + (pOutB+1)->a ) / 2;
+						pOutB->r = (VWB_word)(( (VWB_int)(pOutB-1)->r + (VWB_int)(pOutB+1)->r ) / 2);
+						pOutB->g = (VWB_word)(( (VWB_int)(pOutB-1)->g + (VWB_int)(pOutB+1)->g ) / 2);
+						pOutB->b = (VWB_word)(( (VWB_int)(pOutB-1)->b + (VWB_int)(pOutB+1)->b ) / 2);
+						pOutB->a = (VWB_word)(( (VWB_int)(pOutB-1)->a + (VWB_int)(pOutB+1)->a ) / 2);
 					}
 					conv++;
 				}
@@ -1989,12 +1992,12 @@ VWB_ERROR invertWB( VWB_WarpBlend const& in, VWB_WarpBlend& out )
 					pOutW->x = ( pW3->x + pW4->x ) / 2;
 					pOutW->y = ( pW3->y + pW4->y ) / 2;
 					pOutW->z = ( pW3->z + pW4->z ) / 2;
-					if( out.pBlend3 )
+					if( out.pBlend2 )
 					{
-						pOutB->r = ( (pOutB-w)->r + (pOutB+w)->r ) / 2;
-						pOutB->g = ( (pOutB-w)->g + (pOutB+w)->g ) / 2;
-						pOutB->b = ( (pOutB-w)->b + (pOutB+w)->b ) / 2;
-						pOutB->a = ( (pOutB-w)->a + (pOutB+w)->a ) / 2;
+						pOutB->r = (VWB_word)( ( (VWB_int)( pOutB - w )->r + (VWB_int)( pOutB + w )->r ) / 2 );
+						pOutB->g = (VWB_word)( ( (VWB_int)( pOutB - w )->g + (VWB_int)( pOutB + w )->g ) / 2 );
+						pOutB->b = (VWB_word)( ( (VWB_int)( pOutB - w )->b + (VWB_int)( pOutB + w )->b ) / 2 );
+						pOutB->a = (VWB_word)( ( (VWB_int)( pOutB - w )->a + (VWB_int)( pOutB + w )->a ) / 2 );
 					}
 					conv++;
 				}
@@ -2523,20 +2526,20 @@ VWB_ERROR Dummywarper::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMes
 		mesh.idx.reserve( nRecords * 2 );
 		mesh.vtx.reserve( nRecords );
 		VWB_WarpRecord   *pW  = wbInv.pWarp  ;
-		VWB_BlendRecord3 *pB  = wbInv.pBlend3;
+		VWB_BlendRecord2 *pB  = wbInv.pBlend2;
 		VWB_WarpRecord const* pWE = pW + nRecords - w;
 
 
 						//i3 = newIndex[o+w];
 						//if( -1 == i3 )
 						//{
-						//	VWB_BlendRecord3* pB3 = pB+w;
+						//	VWB_BlendRecord2* pB3 = pB+w;
 						//	VWB_WarpBlendVertex const v3 = { {pW3->x, pW3->y, pW3->z}, {VWB_float(x),VWB_float(y+1)}, {pB3->r, pB3->g, pB3->b} };
 						//	i3 = (VWB_uint)mesh.vtx.size();
 						//	mesh.vtx.push_back( v3 );
 						//	newIndex[o+w] = i3;
 						//}
-								//		VWB_BlendRecord3* pB1 = pB+1;
+								//		VWB_BlendRecord2* pB1 = pB+1;
 								//VWB_WarpBlendVertex const v1 = { {pW1->x, pW1->y, pW1->z}, {VWB_float(x+1),VWB_float(y)}, {pB1->r, pB1->g, pB1->b} };
 								//i1 = (VWB_uint)mesh.vtx.size();
 								//mesh.vtx.push_back( v1 );
@@ -2639,9 +2642,9 @@ VWB_ERROR Dummywarper::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMes
 					VWB_uint j;
 					VWB_float x0 = wbInv.pWarp[i].x;
 					VWB_float y0 = wbInv.pWarp[i].y;
-					VWB_float r0 = wbInv.pBlend3[i].r;
-					VWB_float g0 = wbInv.pBlend3[i].g;
-					VWB_float b0 = wbInv.pBlend3[i].b;
+					VWB_word r0 = wbInv.pBlend2[i].r;
+					VWB_word g0 = wbInv.pBlend2[i].g;
+					VWB_word b0 = wbInv.pBlend2[i].b;
 					do
 					{
 AGAIN:

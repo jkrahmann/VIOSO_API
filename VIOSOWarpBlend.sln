@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.29102.190
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VIOSOWarpBlend", "VIOSOWarpBlend\VIOSOWarpBlend.vcxproj", "{3ABC932E-A0F3-4F8F-80D9-E5756F57EA64}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Mesh", "..\tests\Mesh\OpenGL_3.2.vcxproj", "{B23D5850-468F-4D39-A7A8-E12492B424E0}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{940EA503-1A42-4750-B4BF-A71BFE7C0012}"
 EndProject
 Global
@@ -23,20 +21,9 @@ Global
 		{3ABC932E-A0F3-4F8F-80D9-E5756F57EA64}.Release|Win32.ActiveCfg = Release|Win32
 		{3ABC932E-A0F3-4F8F-80D9-E5756F57EA64}.Release|Win32.Build.0 = Release|Win32
 		{3ABC932E-A0F3-4F8F-80D9-E5756F57EA64}.Release|x64.ActiveCfg = Release|Win32
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Debug|Win32.ActiveCfg = Debug|Win32
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Debug|Win32.Build.0 = Debug|Win32
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Debug|x64.ActiveCfg = Debug|x64
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Debug|x64.Build.0 = Debug|x64
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Release|Win32.ActiveCfg = Release|Win32
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Release|Win32.Build.0 = Release|Win32
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Release|x64.ActiveCfg = Release|x64
-		{B23D5850-468F-4D39-A7A8-E12492B424E0}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{B23D5850-468F-4D39-A7A8-E12492B424E0} = {940EA503-1A42-4750-B4BF-A71BFE7C0012}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B7D6825B-18D5-49D2-9701-3B8F16E5016C}
