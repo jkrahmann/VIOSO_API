@@ -323,7 +323,7 @@ VWB_ERROR DX11WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		};
 		if( 0 == ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) )
 		{
-			size_t sz = 2 * m_sizeMap.cx;
+			UINT sz = 2 * m_sizeMap.cx;
 			dataWarp.SysMemPitch = sizeof( float ) * sz;
 			sz *= m_sizeMap.cy;
 			dataWarp.SysMemSlicePitch = sizeof( float ) * sz;
