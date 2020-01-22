@@ -1,6 +1,5 @@
 #include "DX12WarpBlend.h"
 #include "pixelshader.h"
-#include "d3dx12.h"
 
 //#pragma comment( lib, "d3d11.lib" )
 

@@ -1251,7 +1251,7 @@ void VWB_Warper_base::Defaults()
 VWB_ERROR VWB_Warper_base::AutoView( VWB_WarpBlend const& wb )
 {
 	// test if blend3
-	if( !( FLAG_SP_WARPFILE_HEADER_BLENDV3 & wb.header.flags ) )
+	if( !( FLAG_SP_WARPFILE_HEADER_BLENDV2 & wb.header.flags ) )
 		return VWB_ERROR_PARAMETER;
 
 	// check base matrix, if left or right handed...

@@ -6,7 +6,7 @@
 #include <vector>
 
 #define GL_EXT_DEFINE_AND_IMPLEMENT
-#include "../VIOSOWarpBlend/VIOSOWarpBlend/GL/GLext.h"
+#include "../../VIOSOWarpBlend/GL/GLext.h"
 
 #define USE_VIOSO_API
 const int c_numTri = 30;
@@ -14,9 +14,9 @@ const GLfloat c_rad = 3;
 
 #ifdef USE_VIOSO_API
 #define VIOSOWARPBLEND_DYNAMIC_DEFINE_IMPLEMENT
-#include "../VIOSOWarpBlend/Include/VIOSOWarpBlend.h"
+#include "../../Include/VIOSOWarpBlend.h"
 
-LPCTSTR s_configFile = _T("..\\Res\\VIOSOWarpBlendGL.ini");
+LPCTSTR s_configFile = _T("VIOSOWarpBlendGL.ini");
 LPCTSTR s_channel = _T("IG1");
 VWB_Warper* pWarper = NULL;
 #endif //USE_VIOSO_API
@@ -197,7 +197,7 @@ int InitGL(GLvoid)										// All Setup For OpenGL Goes Here
 	GLenum err = glGetError();
 
 	#define GL_EXT_INITIALIZE
-	#include "../VIOSOWarpBlend/VIOSOWarpBlend/GL/GLext.h"
+	#include "../../VIOSOWarpBlend/GL/GLext.h"
 
 #if defined( _DEBUG)
 	glDebugMessageCallback(&glLog, nullptr);
@@ -772,7 +772,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 
 #ifdef USE_VIOSO_API
 	#define VIOSOWARPBLEND_DYNAMIC_INITIALIZE
-	#include "../VIOSOWarpBlend/Include/VIOSOWarpBlend.h"
+	#include "../../Include/VIOSOWarpBlend.h"
 
 	if( NULL == VWB_Create || 
 		VWB_ERROR_NONE != VWB_Create( NULL, s_configFile, s_channel, &pWarper, 1, NULL ) )

@@ -30,7 +30,7 @@ public:
 	VWB_ERROR remove( VWB_Warper* pWarper );
 	bool empty() { return m_warpers.empty(); }
 	u_short port() { return m_port; }
-	VWB_ERROR sendInfoTo( SocketAddress sa );
+	VWB_ERROR sendInfoTo( SocketAddress sa, SocketAddress* local = NULL);
 	VWB_Warper* getWarper( char const* szName );
 
 	virtual int cbRead( Server* pServer );

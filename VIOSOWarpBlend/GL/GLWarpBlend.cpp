@@ -462,7 +462,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, colBlack);
-		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA16, wb.header.width, wb.header.height, 0, GL_RGBA, GL_UNSIGNED_INT, wb.pBlend2 );
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA16, wb.header.width, wb.header.height, 0, GL_RGBA, GL_UNSIGNED_SHORT, wb.pBlend2 );
 		err = ::glGetError();
 		if( GL_NO_ERROR != err )
 		{

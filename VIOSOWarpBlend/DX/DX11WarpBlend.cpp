@@ -341,16 +341,20 @@ VWB_ERROR DX11WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			sizeof( VWB_BlendRecord2 ) * m_sizeMap.cx * m_sizeMap.cy
 		};
 
-		D3D11_SHADER_RESOURCE_VIEW_DESC descSRV;
-		descSRV.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		descSRV.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-		descSRV.Texture2D.MipLevels = 1;
-		descSRV.Texture2D.MostDetailedMip = 0;
+		D3D11_SHADER_RESOURCE_VIEW_DESC descSRVW;
+		D3D11_SHADER_RESOURCE_VIEW_DESC descSRVB;
+		descSRVW.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		descSRVW.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+		descSRVW.Texture2D.MipLevels = 1;
+		descSRVW.Texture2D.MostDetailedMip = 0;
+		descSRVB = descSRVW;
+		descSRVB.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+
 		ID3D11Texture2D* pTexWarp = NULL, *pTexBlend = NULL;
 		if(	FAILED( m_device->CreateTexture2D( &descTexW, &dataWarp, &pTexWarp ) ) ||
 			FAILED( m_device->CreateTexture2D( &descTexB, &dataBlend, &pTexBlend ) ) ||
-			FAILED( m_device->CreateShaderResourceView( pTexWarp, &descSRV, &m_texWarp ) ) ||
-			FAILED( m_device->CreateShaderResourceView( pTexBlend, &descSRV, &m_texBlend ) ) )
+			FAILED( m_device->CreateShaderResourceView( pTexWarp, &descSRVW, &m_texWarp ) ) ||
+			FAILED( m_device->CreateShaderResourceView( pTexBlend, &descSRVB, &m_texBlend ) ) )
 		{
 			if( wb.pWarp != dataWarp.pSysMem )
 				delete[]( float* ) dataWarp.pSysMem;
@@ -701,7 +705,7 @@ VWB_ERROR DX11WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 				}
 				else
 				{
-					logStr( 2, "Backbuffer texture format: %i \n", desc.Format );
+					logStr( 3, "Backbuffer clone texture acquired; format: %i \n", desc.Format );
 				}
 			}
 			else

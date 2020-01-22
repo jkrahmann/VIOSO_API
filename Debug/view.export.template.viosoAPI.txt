@@ -1,0 +1,21 @@
+${!rotationOrder,YXZ}
+${!handedness,left}
+${!scale,1000}
+${!angles,degree}
+${!header}
+;Export VIOSO Calibrator views ${date,%Y%m%d%H%M%S}.
+${!channel}
+[channel1]
+base=${base}
+eye=[0,0,0]
+dir=[${aX,0.5},${aY,0.6},${aZ,0.5}]
+fov=[${fovL,0.5},${fovT,0.5},${fovR,0.5},${fovB,0.5}]
+near=0.1
+far=2000
+screen=2.6
+bTurnWithView=1
+calibFile=vioso.vwf
+calibIndex=0
+eyePointProvider=
+eyePointProviderParam=
+

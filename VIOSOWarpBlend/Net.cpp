@@ -60,18 +60,23 @@ VWB_ERROR VWBTCPListener::remove( VWB_Warper* pWarper )
 	return VWB_ERROR_FALSE;
 }
 
-VWB_ERROR VWBTCPListener::sendInfoTo( SocketAddress sa )
+VWB_ERROR VWBTCPListener::sendInfoTo( SocketAddress sa, SocketAddress* local )
 {
 	if( 0 == sa.sin_addr.S_un.S_addr )
 		return VWB_ERROR_PARAMETER;
 	if( 0xFFFFFFFF == sa.sin_addr.S_un.S_addr )
 		return VWB_ERROR_PARAMETER;
-
-	SocketAddress inaddr( Socket::getLocalIPof( sa.sin_addr ).S_un.S_addr, m_port );
+	SocketAddress my;
+	if( NULL == local )
+	{
+		std::vector<in_addr> list = Socket::getLocalIPList();
+		my = SocketAddress( list[0].s_addr, sa.getPort() );
+		local = &my;
+	}
 	char buf[SO_RCVBUF] = {0};
 	char buff[20];
 	try {
-		int pos = sprintf_s( buf, "VIOSOWarpBlend API %d.%d.%d.%d %Iu display(s) on %s:%hu.\015\012", VWB_Version_MAJ,VWB_Version_MIN,VWB_Version_MAI,VWB_Version_REV, m_warpers.size(), inaddr.getDottedDecimal(buff), inaddr.getPort() );
+		int pos = sprintf_s( buf, "VIOSOWarpBlend API %d.%d.%d.%d %Iu display(s) on %s:%hu.\015\012", VWB_Version_MAJ,VWB_Version_MIN,VWB_Version_MAI,VWB_Version_REV, m_warpers.size(), local->getDottedDecimal(buff), local->getPort() );
 		for( WarperList::iterator it = m_warpers.begin(); it != m_warpers.end(); it++ )
 		{
 			VWB_Warper_base* p = (VWB_Warper_base*)*it;

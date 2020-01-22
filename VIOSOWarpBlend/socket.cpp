@@ -38,14 +38,18 @@ SocketAddress::SocketAddress(char const* url, unsigned short port)
 
 	if( INADDR_NONE == sin_addr.s_addr )
 	{
-		//addrinfo* pai = NULL;
-		//if( 0 == getaddrinfo(url,NULL,NULL,&pai) && pai )
-		hostent far* host = gethostbyname(url);
-		if( host )
+		addrinfo* pai = NULL;
+		char portStr[6]; _itoa_s( port, portStr, 10 );
+		addrinfo hints = { 0 };
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		if( 0 == getaddrinfo( url, portStr, &hints, &pai ) && pai )
 		{
-			char far* addr = host->h_addr_list[0];
-			if( addr != NULL )
-				memcpy(&sin_addr,host->h_addr_list[0],host->h_length);
+			sin_family = AF_INET;
+			sin_port = Socket::hton( port );
+			sin_addr.s_addr = (ULONG)pai->ai_addr;
+			freeaddrinfo( pai );
 		}
 		else
 		{
@@ -379,19 +383,27 @@ int Socket::close(SOCKET& s)
 //static
 SocketAddress	Socket::gethostbyname(const std::string& name, const unsigned short port)
 { 
-	hostent* pHostEnt = ::gethostbyname(name.c_str());
-	if(pHostEnt == NULL)
+	addrinfo* pai = NULL;
+	char portStr[6]; _itoa_s( port, portStr, 10 );
+	addrinfo hints = { 0 };
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	if( 0 == getaddrinfo( name.c_str(), portStr, &hints, &pai ) && pai )
+	{
+		sockaddr_in sTmp;
+		sTmp.sin_family = AF_INET;
+		sTmp.sin_port = ::htons( port );
+		sTmp.sin_addr.s_addr = (ULONG)pai->ai_addr;
+		freeaddrinfo( pai );
+		return sTmp;
+	}
+	else
 	{
 		sockaddr a;
-		a.sa_family=AF_UNSPEC;
+		a.sa_family = AF_UNSPEC;
 		return a;
 	}
-	unsigned int* pulAddr = (unsigned int*) pHostEnt->h_addr_list[0];
-	sockaddr_in sTmp;
-	sTmp.sin_family=AF_INET;
-	sTmp.sin_port=::htons(port);
-	sTmp.sin_addr.s_addr=*pulAddr;
-	return sTmp;
 }
 
 //static
@@ -416,69 +428,28 @@ std::vector<in_addr> Socket::getLocalIPList()
 	std::string s( 256, 0 );
 	if( 0 == ::gethostname( &s[0], 256 ) )
 	{
-		hostent* ph = ::gethostbyname( s.c_str() );
-		if( ph )
+		addrinfo* pai = NULL;
+		char portStr[6]; _itoa_s( 80, portStr, 10 );
+		addrinfo hints = { 0 };
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		if( 0 == getaddrinfo( s.c_str(), portStr, &hints, &pai ) && pai )
 		{
-			for( int i = 0; NULL != ph->h_addr_list[i]; i++ )
+			for( addrinfo* p = pai; p; p = p->ai_next )
 			{
-				if( 4 == ph->h_length )
+				if( AF_INET == p->ai_family && 4 == p->ai_addrlen )
 				{
-					IN_ADDR* pia = (IN_ADDR*)ph->h_addr_list[i];
-					if( pia->S_un.S_addr == lh.S_un.S_addr )
-						l.push_back( *pia );
+					in_addr a;
+					a.s_addr = (ULONG)p->ai_addr;
+					l.push_back( a );
 				}
 			}
+			freeaddrinfo( pai );
 		}
 	}
 	l.push_back( lh );
 	return l;
-}
-
-//static
-in_addr Socket::getLocalIPof( in_addr inboundAddr )
-{
-	static const in_addr lh = {127,0,0,1};
-	in_addr addr = {255,255,255,255};
-	int jm = 31;
-
-	std::string s( 256, 0 );
-	if( 0 == ::gethostname( &s[0], 256 ) )
-	{
-		hostent* ph = ::gethostbyname( s.c_str() );
-		if( NULL != ph && 4 == ph->h_length )
-		{
-			for( int i = 0; NULL != ph->h_addr_list[i]; i++ )
-			{
-				IN_ADDR* pia = (IN_ADDR*)ph->h_addr_list[i];
-				if( pia->S_un.S_addr == lh.S_un.S_addr )
-					continue;
-				for( int j = 0; j != jm; j++ )
-				{
-					const ULONG c0 = 0xFFFFFFFF << j;
-					const ULONG c1 = pia->S_un.S_addr & c0;
-					const ULONG c2 = inboundAddr.S_un.S_addr & c0;
-					if( c1 == c2 )
-					{
-						addr = *pia;
-						jm = j;
-						break;
-					}
-				}
-			}
-		}
-	}
-	for( int j = 0; j != jm; j++ )
-	{
-		const ULONG c0 = 0xFFFFFFFF << j;
-		const ULONG c1 = lh.S_un.S_addr & c0;
-		const ULONG c2 = inboundAddr.S_un.S_addr & c0;
-		if( c1 == c2 )
-		{
-			addr = lh;
-			break;
-		}
-	}
-	return addr;
 }
 
 //static
@@ -1365,7 +1336,6 @@ Server::Server( SPtr<SockIn> const& s, bool bRunModal )
 			doModal();
 	}
 }
-
 Server::~Server()
 {
 	VWB_LockedStatement( m_mtxGlobal )

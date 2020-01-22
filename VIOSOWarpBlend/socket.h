@@ -40,8 +40,8 @@
 	#define ERRINTR (10004)     //can native bsd socket's be interrupted?
 	#define lastNetError errno
 
-#define startSockets() (0)
-#define closeSockets() (0)
+#define ifStartSockets() if(1)
+#define closeSockets (0)
 typedef struct WSADATA { int i; } WSADATA;
 
 #endif /* WIN32 */
@@ -296,7 +296,6 @@ public:
 	static SocketAddress  gethostbyname(const std::string& name, const unsigned short port=0); 
 	static std::string gethostname(); 
 	static std::vector<in_addr> getLocalIPList(); 
-	static in_addr getLocalIPof( in_addr inboundAddr );
 	static std::string gethostbyaddr(const SocketAddress& sa); 
 	static std::string getErrorMessage(int err);
 
@@ -498,7 +497,7 @@ public:
 	static int parseHttpHeader( char const* szIn, TYPE& type, std::string& request, ParamMap& heads );
 	static int parseHeader( char const* szIn, ParamMap& heads );
 	static int parseHeaderLine( char const* p, ParamMap& params );
-	static int HttpRequest::parseURLencBody( std::string const& body, ParamMap& postData );
+	static int parseURLencBody( std::string const& body, ParamMap& postData );
 	static int parseMultipartBody( std::string const& body, std::string bound, ParamMap& postData, ParamMap& files );
 };
 
