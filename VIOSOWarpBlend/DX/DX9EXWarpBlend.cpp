@@ -289,7 +289,10 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
     res = m_device->SetRenderState(D3DRS_ZENABLE,D3DZB_TRUE);
 
     // Clear the current rendering target
-	res = m_device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_STENCIL|D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0);
+	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
+	{
+		res = m_device->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_STENCIL | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0 );
+	}
 
 	// Set the shaders
 	res = m_device->SetPixelShader( m_PixelShader );

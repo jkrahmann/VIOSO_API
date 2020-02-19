@@ -294,6 +294,94 @@ VWB_ERROR LoadVWF( VWB_WarpBlendSet& set, char const* path )
 	return ret;
 }
 
+VWB_ERROR WriteBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, FILE* f )
+{
+	if( nullptr == map || nullptr == f )
+		return VWB_ERROR_PARAMETER;
+
+	if( h.flags & FLAG_SP_WARPFILE_HEADER_BLENDV3 )
+	{
+		// TODO: add 
+		return VWB_ERROR_NOT_IMPLEMENTED;
+	}
+	else if( h.flags & FLAG_SP_WARPFILE_HEADER_BLENDV2 )
+	{
+		// TODO: add 
+		return VWB_ERROR_NOT_IMPLEMENTED;
+	}
+	else
+	{
+		const VWB_uint pitchBM = ( ( h.width * 24 + 31 ) / 32 ) * 4;
+		BITMAPINFOHEADER bmih = { sizeof( BITMAPINFOHEADER ), h.width, -h.height, 1, 24, 0, h.height * pitchBM, 5512, 5512, 0, 0 };
+		BITMAPFILEHEADER bmfh = { 'MB', sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) + bmih.biSizeImage, 0, 0, sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) };
+		fwrite( &bmfh, sizeof( bmfh ), 1, f );
+		fwrite( &bmih, sizeof( bmih ), 1, f );
+		for( VWB_BlendRecord const* p = map, *pE = map + h.width * h.height; p != pE; p++ )
+		{
+			VWB_byte c[3] = { p->b, p->g, p->r };
+			fwrite( c, 3, 1, f );
+		}
+	}
+	return VWB_ERROR_NONE;
+}
+
+VWB_ERROR SaveVWF( VWB_WarpBlendSet const& set, char const* path )
+{
+	VWB_WarpSetFileHeader hdrSet = { {'v','w','f','1'}, 0, sizeof( VWB_WarpSetFileHeader ), 0 };
+	// count blocks
+	for( auto setIt : set )
+	{
+		if( setIt->pWarp )
+			hdrSet.numBlocks++;
+		else
+			return VWB_ERROR_GENERIC;
+		if( setIt->pBlend )
+			hdrSet.numBlocks++;
+		if( setIt->pBlack )
+			hdrSet.numBlocks++;
+		if( setIt->pWhite )
+			hdrSet.numBlocks++;
+	}
+	if( hdrSet.numBlocks )
+	{
+		FILE* f = nullptr;
+		if( NO_ERROR == fopen_s( &f, path, "wb" ) && nullptr != f )
+		{
+			fwrite( &hdrSet, sizeof( hdrSet ), 1, f );
+			for( auto setIt : set )
+			{
+				if( setIt->pWarp )
+				{
+					fwrite( &setIt->header, sizeof( setIt->header ), 1, f );
+					fwrite( setIt->pWarp, sizeof( VWB_WarpRecord ), setIt->header.width * setIt->header.height, f );
+				}
+				if( setIt->pBlend )
+				{
+					WriteBMP( setIt->header, setIt->pBlend, f );
+				}
+				if( setIt->pBlack )
+				{
+					WriteBMP( setIt->header, setIt->pBlack, f );
+				}
+				if( setIt->pWhite )
+				{
+					WriteBMP( setIt->header, setIt->pWhite, f );
+				}
+			}
+			return VWB_ERROR_NONE;
+		}
+		else
+		{
+			logStr( 0, "ERROR: SaveVWF: Error opening \"%s\"\n", path );
+		}
+	}
+	else
+	{
+		logStr( 0, "ERROR: SaveVWF: no maps in set." );
+	}
+	return VWB_ERROR_GENERIC;
+}
+
 VWB_rect& operator+=(VWB_rect& me, VWB_rect const& other )
 {
 	if( 0 == me.left && 0 == me.top && 0 == me.right && 0 == me.bottom )

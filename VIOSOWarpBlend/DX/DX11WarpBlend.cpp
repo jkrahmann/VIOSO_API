@@ -1079,17 +1079,21 @@ VWB_ERROR DX11WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	m_dc->OMSetBlendState( m_BlendState, NULL, 0xFFFFFFFF );
 	m_dc->OMSetDepthStencilState( m_DepthState, 0 );
 
+	////////////// clear
+	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
+	{
+		if( pDSV )
+		{
+			m_dc->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0 );
+			pDSV->Release();
+		}
+		if( pRTV )
+		{
+			m_dc->ClearRenderTargetView( pRTV, _black );
+			pRTV->Release();
+		}
+	}
 	////////////// draw
-	if( pDSV )
-	{
-		m_dc->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0 );
-		pDSV->Release();
-	}
-	if( pRTV )
-	{
-		m_dc->ClearRenderTargetView( pRTV, _black );
-		pRTV->Release();
-	}
 	m_dc->Draw( 6, 0 );
 	res = S_OK;
 
@@ -1097,7 +1101,9 @@ VWB_ERROR DX11WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	if( VWB_STATEMASK_CONSTANT_BUFFER & stateMask )
 	{
 		m_dc->VSSetConstantBuffers( 0, 1, &pOldCBVS );
+		SAFERELEASE( pOldCBVS );
 		m_dc->PSSetConstantBuffers( 0, 1, &pOldCBPS );
+		SAFERELEASE( pOldCBPS );
 	}
 
 	if( VWB_STATEMASK_SAMPLER & stateMask )

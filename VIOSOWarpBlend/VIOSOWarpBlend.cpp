@@ -1524,7 +1524,9 @@ VWB_ERROR VWB_Warper_base::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlen
 ////////////////////////////////////////////////////////////////////////////////////
 
 Dummywarper::Dummywarper(void)
+	: VWB_Warper_base()
 {
+	memset( &m_wb, 0, sizeof( m_wb ) );
 	m_type4cc = 'MMUD';
 }
 

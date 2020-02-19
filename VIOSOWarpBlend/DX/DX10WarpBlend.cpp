@@ -538,17 +538,21 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	m_device->PSSetSamplers( 1, 1, &m_SSClamp );
 	m_device->PSSetSamplers( 2, 1, &m_SSLin );
 
-////////////// draw
-	if( pDSV )
+	////////////// clear
+	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
 	{
-		m_device->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0f, 0 );
-		pDSV->Release();
+		if( pDSV )
+		{
+			m_device->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0f, 0 );
+			pDSV->Release();
+		}
+		if( pRTV )
+		{
+			m_device->ClearRenderTargetView( pRTV, _black );
+			pRTV->Release();
+		}
 	}
-	if( pRTV )
-	{
-		m_device->ClearRenderTargetView( pRTV, _black );
-		pRTV->Release();
-	}
+	////////////// draw
 	m_device->Draw( 6, 0 );
 	res = S_OK;
 
