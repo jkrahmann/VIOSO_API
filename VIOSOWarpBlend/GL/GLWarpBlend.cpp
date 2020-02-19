@@ -830,7 +830,8 @@ VWB_ERROR GLWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 				glDisable(GL_CLIP_PLANE2);
 				glDisable(GL_CLIP_PLANE3);
 				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4 );
-				glBindVertexArray(oldVA);
+				if( -1 != oldVA && GL_FALSE != oldVA )
+					glBindVertexArray(oldVA);
 			}
 		}
 	}
