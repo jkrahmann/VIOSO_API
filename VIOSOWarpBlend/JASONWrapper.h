@@ -6,18 +6,18 @@
 class JASONWrapper
 {
 public:
-	typedef enum NODE_TYPE
+	enum class NODE_TYPE
 	{
-		NODE_TYPE_UNKNOWN,
-		NODE_TYPE_HASH,
-		NODE_TYPE_LIST,
-		NODE_TYPE_STRING,
-		NODE_TYPE_BOOL,
-		NODE_TYPE_UINT,
-		NODE_TYPE_INT,
-		NODE_TYPE_FLOAT,
-		NODE_TYPE_END
-	} NODE_TYPE;
+		UNKNOWN,
+		HASH,
+		LIST,
+		STRING,
+		BOOL,
+		UINT,
+		INT,
+		FLOAT,
+		END
+	};
 	
 	struct Node
 	{
@@ -32,12 +32,11 @@ public:
 			double floating;
 		};
 
-		Node() : type( NODE_TYPE_UNKNOWN ), floating( 0.0 ) {}
-		Node( std::string s ) : type( NODE_TYPE_STRING ), string( s ) {}
-		Node( bool b ) : type( NODE_TYPE_BOOL ), boolean( b ) {}
-		Node( uint64_t u ) : type( NODE_TYPE_UINT ), uint( u ) {}
-		Node( int64_t i ) : type( NODE_TYPE_INT ), integer( i ) {}
-		Node( double d ) : type( NODE_TYPE_FLOAT ), floating( d ) {}
+		Node() : type( NODE_TYPE::UNKNOWN ), floating( 0.0 ) {}
+		Node( std::string s ) : type( NODE_TYPE::STRING ), string( s ) {}
+		Node( bool b ) : type( NODE_TYPE::BOOL ), boolean( b ) {}
+		Node( int64_t i ) : type( NODE_TYPE::INT ), integer( i ) {}
+		Node( double d ) : type( NODE_TYPE::FLOAT ), floating( d ) {}
 		Node( Node const& other ) : type( other.type )
 		{
 			*this = other;
@@ -45,11 +44,11 @@ public:
 
 		~Node()
 		{
-			if( NODE_TYPE_HASH == type )
+			if( NODE_TYPE::HASH == type )
 			{
 				hash.clear();
 			}
-			else if( NODE_TYPE_LIST == type )
+			else if( NODE_TYPE::LIST == type )
 			{
 				list.clear();
 				list.shrink_to_fit();
@@ -59,11 +58,11 @@ public:
 
 		Node& operator=( Node const& other )
 		{
-			if( NODE_TYPE_HASH == type )
+			if( NODE_TYPE::HASH == type )
 			{
 				hash.clear();
 			}
-			else if( NODE_TYPE_LIST == type )
+			else if( NODE_TYPE::LIST == type )
 			{
 				list.clear();
 				list.shrink_to_fit();
@@ -73,10 +72,10 @@ public:
 			// we need to deep copy all the data
 			switch( type )
 			{
-			case NODE_TYPE_HASH:
+			case NODE_TYPE::HASH:
 				hash = other.hash;
 				break;
-			case NODE_TYPE_LIST:
+			case NODE_TYPE::LIST:
 				list = other.list;
 				break;
 			default:
@@ -87,7 +86,7 @@ public:
 
 		Node& operator[]( std::string hashtag )
 		{
-			if( NODE_TYPE_HASH == type )
+			if( NODE_TYPE::HASH == type )
 			{
 				return hash[hashtag];
 			}
@@ -99,7 +98,7 @@ public:
 
 		Node const& operator[]( std::string hashtag ) const
 		{
-			if( NODE_TYPE_HASH == type )
+			if( NODE_TYPE::HASH == type )
 			{
 				auto found = hash.find( hashtag );
 				if( hash.end() != found )
@@ -115,7 +114,7 @@ public:
 
 		Node& operator[]( size_t index )
 		{
-			if( NODE_TYPE_LIST == type )
+			if( NODE_TYPE::LIST == type )
 			{
 				if( list.size() < index )
 				{
@@ -129,7 +128,7 @@ public:
 		}
 		Node const& operator[]( size_t index ) const
 		{
-			if( NODE_TYPE_LIST == type )
+			if( NODE_TYPE::LIST == type )
 			{
 				if( list.size() < index )
 				{
@@ -144,14 +143,14 @@ public:
 
 		operator bool() const
 		{
-			if( NODE_TYPE_BOOL == type )
+			if( NODE_TYPE::BOOL == type )
 				return boolean;
 			else
 			{
 				if( isIntegral() )
 				{
 					Node e = *this;
-					if( e.changeTypeTo( NODE_TYPE_BOOL ) )
+					if( e.changeTypeTo( NODE_TYPE::BOOL ) )
 					{
 						return e.boolean;
 					}
@@ -162,13 +161,13 @@ public:
 
 		operator bool&()
 		{
-			if( NODE_TYPE_BOOL == type )
+			if( NODE_TYPE::BOOL == type )
 				return boolean;
 			else
 			{
 				if( isIntegral() )
 				{
-					if( changeTypeTo( NODE_TYPE_BOOL ) )
+					if( changeTypeTo( NODE_TYPE::BOOL ) )
 					{
 						return boolean;
 					}
@@ -180,21 +179,21 @@ public:
 
 		bool isIntegral() const
 		{ 
-			return NODE_TYPE_STRING <= type && type < NODE_TYPE_END;
+			return NODE_TYPE::STRING <= type && type < NODE_TYPE::END;
 		}
 
 		bool changeTypeTo( NODE_TYPE newType )
 		{
 			switch( type )
 			{
-			case NODE_TYPE_STRING:
+			case NODE_TYPE::STRING:
 				switch( newType )
 				{
-				case NODE_TYPE_STRING:
+				case NODE_TYPE::STRING:
 					return true;
-				case NODE_TYPE_BOOL:
+				case NODE_TYPE::BOOL:
 				{
-					type = NODE_TYPE_BOOL;
+					type = NODE_TYPE::BOOL;
 					const std::string s( "TRUE" );
 					boolean = std::equal( string.begin(), string.end(), s.begin(), s.end(),
 										  []( char const& c1, char const& c2 )
@@ -203,105 +202,105 @@ public:
 					} );
 					return true;
 				}
-				case NODE_TYPE_UINT:
-					type = NODE_TYPE_UINT;
+				case NODE_TYPE::UINT:
+					type = NODE_TYPE::UINT;
 					return 1 == sscanf( string.c_str(), "%llu", &uint );
-				case NODE_TYPE_INT:
-					type = NODE_TYPE_INT;
+				case NODE_TYPE::INT:
+					type = NODE_TYPE::INT;
 					return 1 == sscanf( string.c_str(), "%lli", &integer );
-				case NODE_TYPE_FLOAT:
-					type = NODE_TYPE_FLOAT;
+				case NODE_TYPE::FLOAT:
+					type = NODE_TYPE::FLOAT;
 					return 1 == sscanf( string.c_str(), "%lf", &floating );
 				default:
 					return false;
 				};
-			case NODE_TYPE_BOOL:
+			case NODE_TYPE::BOOL:
 				switch( newType )
 				{
-				case NODE_TYPE_STRING:
-					type = NODE_TYPE_STRING;
+				case NODE_TYPE::STRING:
+					type = NODE_TYPE::STRING;
 					string = boolean ? "true" : "false";
 					return true;
-				case NODE_TYPE_BOOL:
+				case NODE_TYPE::BOOL:
 					return true;
-				case NODE_TYPE_UINT:
-					type = NODE_TYPE_UINT;
+				case NODE_TYPE::UINT:
+					type = NODE_TYPE::UINT;
 					uint = boolean ? 1 : 0;
 					return true;
-				case NODE_TYPE_INT:
-					type = NODE_TYPE_INT;
+				case NODE_TYPE::INT:
+					type = NODE_TYPE::INT;
 					integer = boolean ? 1 : 0;
 					return true;
-				case NODE_TYPE_FLOAT:
-					type = NODE_TYPE_FLOAT;
+				case NODE_TYPE::FLOAT:
+					type = NODE_TYPE::FLOAT;
 					floating = boolean ? 1 : 0;
 					return true;
 				default:
 					return false;
 				};
-			case NODE_TYPE_UINT:
+			case NODE_TYPE::UINT:
 				switch( newType )
 				{
-				case NODE_TYPE_STRING:
+				case NODE_TYPE::STRING:
 					string = std::to_string( uint );
 					return true;
-				case NODE_TYPE_BOOL:
-					type = NODE_TYPE_BOOL;
+				case NODE_TYPE::BOOL:
+					type = NODE_TYPE::BOOL;
 					boolean = 0 != uint;
 					return true;
-				case NODE_TYPE_UINT:
+				case NODE_TYPE::UINT:
 					return true;
-				case NODE_TYPE_INT:
-					type = NODE_TYPE_INT;
+				case NODE_TYPE::INT:
+					type = NODE_TYPE::INT;
 					return true;
-				case NODE_TYPE_FLOAT:
-					type = NODE_TYPE_FLOAT;
+				case NODE_TYPE::FLOAT:
+					type = NODE_TYPE::FLOAT;
 					floating = (double)uint;
 					return true;
 				default:
 					return false;
 				};
-			case NODE_TYPE_INT:
+			case NODE_TYPE::INT:
 				switch( newType )
 				{
-				case NODE_TYPE_STRING:
+				case NODE_TYPE::STRING:
 					string = std::to_string( integer );
 					return true;
-				case NODE_TYPE_BOOL:
-					type = NODE_TYPE_BOOL;
+				case NODE_TYPE::BOOL:
+					type = NODE_TYPE::BOOL;
 					boolean = 0 != integer;
 					return true;
-				case NODE_TYPE_UINT:
-					type = NODE_TYPE_UINT;
+				case NODE_TYPE::UINT:
+					type = NODE_TYPE::UINT;
 					return true;
-				case NODE_TYPE_INT:
+				case NODE_TYPE::INT:
 					return true;
-				case NODE_TYPE_FLOAT:
-					type = NODE_TYPE_FLOAT;
+				case NODE_TYPE::FLOAT:
+					type = NODE_TYPE::FLOAT;
 					floating = (double)integer;
 					return true;
 				default:
 					return false;
 				};
-			case NODE_TYPE_FLOAT:
+			case NODE_TYPE::FLOAT:
 				switch( newType )
 				{
-				case NODE_TYPE_STRING:
+				case NODE_TYPE::STRING:
 					string = std::to_string( floating );
 					return true;
-				case NODE_TYPE_BOOL:
-					type = NODE_TYPE_BOOL;
+				case NODE_TYPE::BOOL:
+					type = NODE_TYPE::BOOL;
 					boolean = 0 != floating;
 					return true;
-				case NODE_TYPE_UINT:
-					type = NODE_TYPE_UINT;
+				case NODE_TYPE::UINT:
+					type = NODE_TYPE::UINT;
 					uint = (uint64_t)floating;
 					return true;
-				case NODE_TYPE_INT:
-					type = NODE_TYPE_INT;
+				case NODE_TYPE::INT:
+					type = NODE_TYPE::INT;
 					integer = (int64_t)floating;
 					return true;
-				case NODE_TYPE_FLOAT:
+				case NODE_TYPE::FLOAT:
 					return true;
 				default:
 					return false;

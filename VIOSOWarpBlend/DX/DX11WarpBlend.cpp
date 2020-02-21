@@ -578,11 +578,14 @@ VWB_ERROR DX11WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 
 	ID3D11DepthStencilView* pDSV = NULL;
 	ID3D11RenderTargetView* pRTV = NULL;
-	m_dc->OMGetRenderTargets( 1, &pRTV, &pDSV );
-	if( NULL == pRTV )
+	if( NULL == inputTexture || ( stateMask & VWB_STATEMASK_CLEARBACKBUFFER ) )
 	{
-		logStr( 3, "Render target not available.\n" );
-		return VWB_ERROR_GENERIC;
+		m_dc->OMGetRenderTargets( 1, &pRTV, &pDSV );
+		if( NULL == pRTV )
+		{
+			logStr( 3, "Render target not available.\n" );
+			return VWB_ERROR_GENERIC;
+		}
 	}
 
 	// do backbuffer copy if necessary
@@ -1079,20 +1082,25 @@ VWB_ERROR DX11WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	m_dc->OMSetBlendState( m_BlendState, NULL, 0xFFFFFFFF );
 	m_dc->OMSetDepthStencilState( m_DepthState, 0 );
 
-	////////////// clear
-	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
+	if( pDSV )
 	{
-		if( pDSV )
+		////////////// clear
+		if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
 		{
 			m_dc->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0 );
-			pDSV->Release();
 		}
-		if( pRTV )
+		pDSV->Release();
+	}
+	if( pRTV )
+	{
+		////////////// clear
+		if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
 		{
 			m_dc->ClearRenderTargetView( pRTV, _black );
-			pRTV->Release();
 		}
+		pRTV->Release();
 	}
+
 	////////////// draw
 	m_dc->Draw( 6, 0 );
 	res = S_OK;
