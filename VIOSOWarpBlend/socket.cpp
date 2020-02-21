@@ -48,7 +48,7 @@ SocketAddress::SocketAddress(char const* url, unsigned short port)
 		{
 			sin_family = AF_INET;
 			sin_port = Socket::hton( port );
-			sin_addr.s_addr = (ULONG)pai->ai_addr;
+			sin_addr.s_addr = *(ULONG*)pai->ai_addr->sa_data;
 			freeaddrinfo( pai );
 		}
 		else
@@ -394,7 +394,7 @@ SocketAddress	Socket::gethostbyname(const std::string& name, const unsigned shor
 		sockaddr_in sTmp;
 		sTmp.sin_family = AF_INET;
 		sTmp.sin_port = ::htons( port );
-		sTmp.sin_addr.s_addr = (ULONG)pai->ai_addr;
+		sTmp.sin_addr.s_addr = *(ULONG*)pai->ai_addr->sa_data;
 		freeaddrinfo( pai );
 		return sTmp;
 	}
@@ -441,7 +441,7 @@ std::vector<in_addr> Socket::getLocalIPList()
 				if( AF_INET == p->ai_family && 4 == p->ai_addrlen )
 				{
 					in_addr a;
-					a.s_addr = (ULONG)p->ai_addr;
+					a.s_addr = *(ULONG*)p->ai_addr->sa_data;
 					l.push_back( a );
 				}
 			}

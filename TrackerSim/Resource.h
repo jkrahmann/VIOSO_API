@@ -13,7 +13,6 @@
 #define IDM_EXIT                        105
 #define IDR_MAINFRAME                   128
 #define IDR_ACCELERATOR1                130
-#define IDB_BITMAP1                     131
 #define IDC_LIST1                       1000
 #define IDC_EDIT_SAMPLEFREQ             1001
 #define IDC_EDIT_SENDFREQ               1002
