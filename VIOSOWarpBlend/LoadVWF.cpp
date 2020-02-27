@@ -78,6 +78,7 @@ VWB_ERROR LoadVWF( VWB_WarpBlendSet& set, char const* path )
 			int nSets = 1;
 			while( nSets )
 			{
+				long s = ftell( f );
 				if( 1 == fread_s( &h0, sizeof( VWB_WarpSetFileHeader ), sizeof( VWB_WarpSetFileHeader ), 1, f ) )
 				{
 					switch( *(VWB_uint*)&h0.magicNumber )
@@ -312,21 +313,34 @@ VWB_ERROR WriteBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, FI
 	else
 	{
 		const VWB_uint pitchBM = ( ( h.width * 24 + 31 ) / 32 ) * 4;
-		BITMAPINFOHEADER bmih = { sizeof( BITMAPINFOHEADER ), h.width, -h.height, 1, 24, 0, h.height * pitchBM, 5512, 5512, 0, 0 };
+		BITMAPINFOHEADER bmih = { 
+			sizeof( BITMAPINFOHEADER ), 
+			h.width, 
+			-h.height, 
+			1, 24, 0, 
+			h.height * pitchBM, 
+			5512, 5512, 0, 0 };
+		long a = ftell( f );
 		BITMAPFILEHEADER bmfh = { 'MB', sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) + bmih.biSizeImage, 0, 0, sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) };
 		fwrite( &bmfh, sizeof( bmfh ), 1, f );
 		fwrite( &bmih, sizeof( bmih ), 1, f );
+		VWB_uint s = 0;
 		for( VWB_BlendRecord const* p = map, *pE = map + h.width * h.height; p != pE; p++ )
 		{
 			VWB_byte c[3] = { p->b, p->g, p->r };
-			fwrite( c, 3, 1, f );
+			s+= fwrite( c, 3, 1, f );
 		}
+		if( s * 3 != bmih.biSizeImage )
+			throw - 1;
 	}
 	return VWB_ERROR_NONE;
 }
 
 VWB_ERROR SaveVWF( VWB_WarpBlendSet const& set, char const* path )
 {
+	char pp[MAX_PATH];
+	strcpy_s( pp, path );
+	MkPath( pp, MAX_PATH, ".vwf" );
 	VWB_WarpSetFileHeader hdrSet = { {'v','w','f','1'}, 0, sizeof( VWB_WarpSetFileHeader ), 0 };
 	// count blocks
 	for( auto setIt : set )
@@ -345,16 +359,18 @@ VWB_ERROR SaveVWF( VWB_WarpBlendSet const& set, char const* path )
 	if( hdrSet.numBlocks )
 	{
 		FILE* f = nullptr;
-		if( NO_ERROR == fopen_s( &f, path, "wb" ) && nullptr != f )
+		if( NO_ERROR == fopen_s( &f, pp, "wb" ) && nullptr != f )
 		{
 			fwrite( &hdrSet, sizeof( hdrSet ), 1, f );
 			for( auto setIt : set )
 			{
 				if( setIt->pWarp )
 				{
+					setIt->header.szHdr = sizeof( setIt->header );
 					fwrite( &setIt->header, sizeof( setIt->header ), 1, f );
 					fwrite( setIt->pWarp, sizeof( VWB_WarpRecord ), setIt->header.width * setIt->header.height, f );
 				}
+				long a = ftell( f );
 				if( setIt->pBlend )
 				{
 					WriteBMP( setIt->header, setIt->pBlend, f );
@@ -368,11 +384,12 @@ VWB_ERROR SaveVWF( VWB_WarpBlendSet const& set, char const* path )
 					WriteBMP( setIt->header, setIt->pWhite, f );
 				}
 			}
+			fclose( f );
 			return VWB_ERROR_NONE;
 		}
 		else
 		{
-			logStr( 0, "ERROR: SaveVWF: Error opening \"%s\"\n", path );
+			logStr( 0, "ERROR: SaveVWF: Error opening \"%s\"\n", pp );
 		}
 	}
 	else
