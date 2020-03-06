@@ -328,7 +328,7 @@ VWB_ERROR WriteBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, FI
 		for( VWB_BlendRecord const* p = map, *pE = map + h.width * h.height; p != pE; p++ )
 		{
 			VWB_byte c[3] = { p->b, p->g, p->r };
-			s+= fwrite( c, 3, 1, f );
+			s+= (VWB_uint)fwrite( c, 3, 1, f );
 		}
 		if( s * 3 != bmih.biSizeImage )
 			throw - 1;
