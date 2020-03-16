@@ -811,6 +811,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 			p->r = 65535;
 			p->g = 65535;
 			p->b = 65535;
+			p->a = 65535;
 		}
 		wb.header.flags&= ~FLAG_SP_WARPFILE_HEADER_BLENDV3;
 		wb.header.flags|=  FLAG_SP_WARPFILE_HEADER_BLENDV2;
@@ -899,20 +900,20 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 		}
 	}
 
-	// put clipping channel of warp to a channel of blend
+	// put clipping channel of warp to 'a' channel of blend
 		VWB_WarpRecord* pW = wb.pWarp;
 	if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D )
 	{
 		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
 		{
-			p->a = pW->w;
+			p->a = pW->w * 65535.0f;
 		}
 	}
 	else
 	{
 		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
 		{
-			p->a = pW->z;
+			p->a = pW->z * 65535.0f;
 		}
 	}
 
@@ -1008,22 +1009,14 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 			optimalRect.right = wb.header.width;
 			optimalRect.bottom =wb.header.height;
 		}
-		// transfer warp mask to blend and collect dimensions
+		// collect dimensions
 		VWB_BOXf b = VWB_BOXf::M();
 		VWB_WarpRecord* pW = wb.pWarp;
 		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
 		{
-			if( 0.5 > pW->w )
+			if( 0.5 <= pW->w )
 			{
-				p->r = 0;
-				p->g = 0;
-				p->b = 0;
-				p->a = 0;
-			}
-			else
-			{
-				p->a = pW->w;
-				b+= VWB_VEC3f::ptr( &pW->x );
+				b += VWB_VEC3f::ptr( &pW->x );
 			}
 		}
 
@@ -1044,21 +1037,6 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 	}
 	else
 	{
-		// transfer warp mask to blend
-		VWB_WarpRecord* pW = wb.pWarp;
-		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
-		{
-			if( 0.5 > pW->z )
-			{
-				p->r = 0;
-				p->g = 0;
-				p->b = 0;
-				p->a = 0;
-			}
-			else
-				p->a = pW->z;
-		}
-
 		if( bAutoView )
 		{
 			if( 0 != wb.header.vCntDispPx[4] && 0 != wb.header.vCntDispPx[5] )
@@ -1217,7 +1195,8 @@ VWB_ERROR VWB_Warper_base::GetViewClip( VWB_float* eye, VWB_float* rot, VWB_floa
 
 void VWB_Warper_base::getClip( VWB_VEC3f const& e, VWB_float * pClip )
 {
-	VWB_float dd = nearDist / ( screenDist - e.z );
+	//VWB_float dd = nearDist / ( screenDist -e.z );
+	VWB_float dd = nearDist / ( screenDist + ( m_bRH ? e.z : -e.z ) );
 	pClip[0] = ( m_viewSizes[0] + e.x ) * dd;
 	pClip[1] = ( m_viewSizes[1] + e.y ) * dd;
 	pClip[2] = ( m_viewSizes[2] - e.x ) * dd;

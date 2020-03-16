@@ -2,6 +2,8 @@
 #include "socket.h"
 #include "logging.h"
 #include <limits>
+#include <string>
+#include <sstream>
 
 // ----------------------------------------------------------------------------------
 //                               SocketAddress
@@ -48,7 +50,10 @@ SocketAddress::SocketAddress(char const* url, unsigned short port)
 		{
 			sin_family = AF_INET;
 			sin_port = Socket::hton( port );
-			sin_addr.s_addr = *(ULONG*)pai->ai_addr->sa_data;
+		#pragma warning( push )
+		#pragma warning( disable : 4311 )
+			sin_addr.s_addr = (ULONG)pai->ai_addr;
+		#pragma warning( pop )
 			freeaddrinfo( pai );
 		}
 		else
@@ -394,7 +399,10 @@ SocketAddress	Socket::gethostbyname(const std::string& name, const unsigned shor
 		sockaddr_in sTmp;
 		sTmp.sin_family = AF_INET;
 		sTmp.sin_port = ::htons( port );
-		sTmp.sin_addr.s_addr = *(ULONG*)pai->ai_addr->sa_data;
+		#pragma warning( push )
+		#pragma warning( disable : 4311 )
+		sTmp.sin_addr.s_addr = (ULONG)pai->ai_addr;
+		#pragma warning( pop )
 		freeaddrinfo( pai );
 		return sTmp;
 	}
@@ -441,7 +449,10 @@ std::vector<in_addr> Socket::getLocalIPList()
 				if( AF_INET == p->ai_family && 4 == p->ai_addrlen )
 				{
 					in_addr a;
-					a.s_addr = *(ULONG*)p->ai_addr->sa_data;
+					#pragma warning( push )
+					#pragma warning( disable : 4311 )
+					a.s_addr = (ULONG)p->ai_addr;
+					#pragma warning( pop )
 					l.push_back( a );
 				}
 			}
@@ -654,7 +665,7 @@ TCPConnection::~TCPConnection()
 		logStr( 2, "Info: TCPConnection %08x closed.\n", (SOCKET)*this );
 }
 
-int TCPConnection::write( char* buff, int size )
+int TCPConnection::write( char const* buff, int size )
 {
 	int r = 0;
 	VWB_LockedStatement( m_mtxRWOut )
@@ -926,14 +937,103 @@ int TCPConnection::processError( Server* pServer )
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 HttpRequest::HttpRequest( TCPConnection& conn )
-: state( STATE_UNDEF )
-, type(TYPE_UNDEF)
-, enctype(ENCTYPE_UNDEF)
-, contentLength(0)
+: state( STATE_UNDEF ), type( TYPE_UNDEF ), enctype( ENCTYPE_UNDEF ) 
 {
 	parseRequest( conn );
 };
 
+bool HttpRequest::readFrom( TCPConnection& conn )
+{
+	*this = HttpRequest(); // empty
+	return STATE_ERROR != parseRequest( conn );
+};
+
+bool HttpRequest::writeTo( TCPConnection& conn )
+{
+	std::stringstream s( std::ios_base::binary );
+	if( postData.empty() ) // GET header
+		s << "GET ";
+	else // POST header
+	{
+		s << "POST ";
+		bound = "-----------------------------VIOSOSPCALIBRATOR";
+	}
+	if( request.empty() )
+		s << "/";
+	else
+		s << request;
+	if( !getData.empty() )
+	{
+		s << "?";
+		ParamMap::const_iterator param = getData.begin();
+		s << param->first;
+		if( !param->second.empty() )
+			s << ":" << param->second;
+		for( ; param != getData.end(); param++ )
+		{
+			s << "&" << param->first;
+			if( !param->second.empty() )
+				s << ":" << param->second;
+		}
+	}
+	s << " HTTP/1.1\015\012";
+	for( ParamMap::const_iterator header = headers.begin(); header != headers.end(); header++ )
+	{
+		s << header->first;
+		if( !header->second.empty() )
+			s << ": " << header->second;
+		s << "\015\012";
+	}
+	// calculate content size, if POST
+	
+	if( !postData.empty() )
+	{
+		s << "Content-Type: multipart/form-data; boundary=" << bound << "\015\012";
+		std::stringstream ss;
+		for( PostParamMap::const_iterator it = postData.begin(); it != postData.end(); it++ )
+		{
+			ss << "--" << bound << "\015\012";
+			ss << "Content-Disposition: form-data; name=\"" << it->first << "\"";
+			if( !it->second.file.empty() )
+			{
+				ss << "; filename = \"" << it->second.value << "\"";
+			}
+			ss << "\015\012";
+			if( it->second.file.empty() )
+			{
+				ss << "Content-Type: text/plain" << "\015\012";
+				ss << "\015\012";
+				ss << it->second.value << "\015\012";
+			}
+			else
+			{
+				switch( it->second.encType )
+				{
+				case ENCTYPE_UNDEF:
+					ss << "Content-Type: application/octet-stream" << "\015\012";
+					break;
+				case ENCTYPE_URL:
+					ss << "Content-Type: application/x-url-encoded" << "\015\012";
+					break;
+				case ENCTYPE_MULTI: // actually an error
+				case ENCTYPE_OTHER:
+					ss << "Content-Type: application/octet-stream" << "\015\012";
+					break;
+				}
+				ss << "\015\012";
+				ss << it->second.file;
+				ss << "\015\012";
+			}
+		}
+		ss << "--" << bound << "--" << "\015\012";
+		s << "Content-Length: " << ss.str().size() << "\015\012";
+		s << "\015\012";
+		s << ss.str();
+	}
+
+	conn.write( s.str().c_str(), (int)s.str().size() );
+	return false;
+}
 
 HttpRequest::STATE HttpRequest::parseRequest( TCPConnection& conn )
 {
@@ -998,6 +1098,7 @@ HttpRequest::STATE HttpRequest::parseRequest( TCPConnection& conn )
 						enctype = ENCTYPE_OTHER;
 						bound = it->second.substr( 0, it->second.find( ';' ) );
 					}
+					headers.erase( it );
 				}
 				else
 					enctype = ENCTYPE_URL;
@@ -1014,6 +1115,7 @@ HttpRequest::STATE HttpRequest::parseRequest( TCPConnection& conn )
 						state = STATE_ERROR;
 						break;
 					}
+					headers.erase( it ); // need to remove from headers after parsed
 				}
 				else
 				{
@@ -1032,7 +1134,7 @@ HttpRequest::STATE HttpRequest::parseRequest( TCPConnection& conn )
 			if( contentLength > conn.getNumRead() )
 				break;
 
-			body.resize( contentLength + 1 );
+			body.resize( size_t(contentLength) + 1 );
 
 			if( contentLength == conn.read( &body[0], contentLength + 1, contentLength ) )
 				state = STATE_BODY;
@@ -1045,7 +1147,7 @@ HttpRequest::STATE HttpRequest::parseRequest( TCPConnection& conn )
 			if( ENCTYPE_URL == enctype )
 				i = parseURLencBody( body, postData );
 			else
-				i = parseMultipartBody( body, bound, postData, files );
+				i = parseMultipartBody( body, bound, postData );
 			if( 0 < i )
 				state = STATE_PARSED;
 			else if( 0 == i )
@@ -1065,7 +1167,7 @@ HttpRequest::STATE HttpRequest::parseRequest( TCPConnection& conn )
 }
 
 
-int HttpRequest::parseURL( std::string request, std::string& site, ParamMap& getData )
+int HttpRequest::parseURL( std::string const& request, std::string& site, ParamMap& getData )
 {
 	if( request.empty() )
 		return SOCKET_ERROR;
@@ -1085,8 +1187,7 @@ int HttpRequest::parseURL( std::string request, std::string& site, ParamMap& get
 				break;
 			pos1 = pos2 + 1;
 		}
-		request.erase(pos,std::string::npos);
-		site = request;
+		site = request.substr( 0, pos - 1 );
 		return 1 + (int)getData.size();
  	}
 	else
@@ -1104,7 +1205,7 @@ int HttpRequest::parseHttpHeader( char const* szIn, TYPE& type, std::string& req
 		return SOCKET_ERROR;
 	request = std::string( p, pE - p );
 
-	std::string::size_type po1 = request.find( ' ', 5 );
+	std::string::size_type po1 = request.find( ' ', 5 ); // this is the space before protocol, this is mandatory but does not change change processing
 	if( std::string::npos == po1 )
 		return SOCKET_ERROR;
 
@@ -1185,7 +1286,7 @@ int HttpRequest::parseHeaderLine( char const* p, ParamMap& params )
 	return (int)params.size();
 }
 
-int HttpRequest::parseURLencBody( std::string const& body, ParamMap& postData )
+int HttpRequest::parseURLencBody( std::string const& body, PostParamMap& postData )
 {
 	if( body.empty() )
 		return SOCKET_ERROR;
@@ -1197,7 +1298,8 @@ int HttpRequest::parseURLencBody( std::string const& body, ParamMap& postData )
 		std::string::size_type pos3 = body.find( '=', pos1 );
 		if( std::string::npos == pos3 )
 			break;
-		postData[std::string( body, pos1, pos3 - pos1 )] = std::string( body, pos3 + 1, std::string::npos == pos2 ? std::string::npos : pos2 - pos3 - 1 );
+		PostValue v = { ENCTYPE_URL, std::string( body, pos3 + 1, std::string::npos == pos2 ? std::string::npos : pos2 - pos3 - 1 ), "" };
+		postData[std::string( body, pos1, pos3 - pos1 )] = v;
 		if( std::string::npos == pos2 )
 			break;
 		pos1 = pos2 + 1;
@@ -1205,7 +1307,7 @@ int HttpRequest::parseURLencBody( std::string const& body, ParamMap& postData )
 	return (int)postData.size();
 }
 
-int HttpRequest::parseMultipartBody( std::string const& body, std::string bound, ParamMap& postData, ParamMap& files )
+int HttpRequest::parseMultipartBody( std::string const& body, std::string bound, PostParamMap& postData )
 {
 	if( bound.length() * 2 + 10 > body.size() )
 		return SOCKET_ERROR;
@@ -1239,11 +1341,13 @@ int HttpRequest::parseMultipartBody( std::string const& body, std::string bound,
 					ParamMap::iterator itFile = params.find( "filename" );
 					if( params.end() != itName  )
 					{
+						PostValue& v = postData[itName->second];
+						v.encType = ENCTYPE_OTHER;
+						v.value = blob.substr( datastart, std::string::npos );
 						if( params.end() != itFile )
 						{
-							files[ itName->second ] = itFile->second;
+							v.file.swap( itFile->second );
 						}
-						postData[ itName->second ] = blob.substr( datastart, std::string::npos );
 					}
 				}
 			}

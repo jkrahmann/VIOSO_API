@@ -417,7 +417,7 @@ public:
 	TCPConnection( SocketAddress connectTo );
 	virtual ~TCPConnection();
 
-	int write( char* buff, int size );
+	int write( char const* buff, int size );
 
 	// returns number of read chars, obtain available number of chars in stream from getNumRead()
 	// returns SOCKET_ERROR if buffer too small
@@ -473,32 +473,53 @@ public:
 		ENCTYPE_OTHER
 	} ENCTYPE;
 
+	typedef struct PostValue {
+		ENCTYPE encType;
+		std::string value;
+		std::string file;
+	} PostValue;
+
 	struct strcmpFn { bool operator()( std::string const& x, std::string const& y ) const { return 0 < x.compare(y); };};
 	typedef std::map< std::string, std::string, strcmpFn > ParamMap;
+	typedef std::map< std::string, PostValue, strcmpFn > PostParamMap;
 
 	std::string		request;
 	ParamMap		getData;
 	ParamMap		headers;
 	std::string		body;
-	ParamMap		postData;
-	ParamMap		files;
+	PostParamMap	postData;
 	STATE			state;
 	TYPE			type;
 	ENCTYPE			enctype;
 	std::string		bound;
 	int				contentLength;
 
-	HttpRequest() : state(STATE_UNDEF), type(TYPE_UNDEF), enctype(ENCTYPE_UNDEF) {};
+	HttpRequest() : state( STATE_UNDEF ), type( TYPE_UNDEF ), enctype( ENCTYPE_UNDEF ) {};
+	HttpRequest( HttpRequest const& other )
+		: state( other.state )
+		, type( other.type )
+		, enctype( other.enctype )
+		, request( other.request )
+		, getData( other.getData )
+		, headers( other.headers )
+		, body( other.body )
+		, postData( other.postData )
+		, bound( other.bound )
+		, contentLength( other.contentLength )
+	{};
+
 	HttpRequest( TCPConnection& conn );
+	bool readFrom( TCPConnection& conn );
+	bool writeTo( TCPConnection& conn );
 	operator STATE() { return state; }
 
 	STATE parseRequest( TCPConnection& conn );
-	static int parseURL( std::string url, std::string& site, ParamMap& getParams );
+	static int parseURL( std::string const& url, std::string& site, ParamMap& getParams );
 	static int parseHttpHeader( char const* szIn, TYPE& type, std::string& request, ParamMap& heads );
 	static int parseHeader( char const* szIn, ParamMap& heads );
 	static int parseHeaderLine( char const* p, ParamMap& params );
-	static int parseURLencBody( std::string const& body, ParamMap& postData );
-	static int parseMultipartBody( std::string const& body, std::string bound, ParamMap& postData, ParamMap& files );
+	static int parseURLencBody( std::string const& body, PostParamMap& postData );
+	static int parseMultipartBody( std::string const& body, std::string bound, PostParamMap& postData );
 };
 
 class Server

@@ -140,7 +140,32 @@ GLchar const* s_warp_blend_fragment_shader =
 "	}																	\n"
 "}																		\n";
                                                                         
-GLchar const* s_warp_blend_fragment_shader_3D = 						
+GLchar const* s_warp_blend_fragment_shader_3D =
+"void main()															\n"
+"{                                               						\n"
+"	vec4 tex = _tex2D( samWarp, texcoord.st );     					\n"
+"	vec4 blend = _tex2D( samBlend, texcoord.st );  					\n"
+"	if( 0.1 < blend.a )                            						\n"
+"	{                                           						\n"
+"		tex/= blend.a;                            						\n"
+"		tex.a = 1;                            						\n"
+"		tex = matView * tex;                    						\n"
+"		tex.xy/= tex.w;                         						\n"
+"		tex.x/=2.0;                              						\n"
+"		tex.y/=2.0;                              						\n"
+"		tex.xy+= 0.5;                           						\n"
+"		FragColor = _texture2D( samContent, tex.xy );	 				\n"
+"		if( !bDoNotBlend )												\n"
+"			FragColor.rgb*= blend.rgb;									\n"
+"		FragColor.a = 1.0;               								\n"
+"	}                                           						\n"
+"	else																\n"
+"	{																	\n"
+"		FragColor = vec4( 0.0,0.0,0.0,1.0 );							\n"
+"	}																	\n"
+"}	\n";
+
+GLchar const* s_warp_blend_fragment_shader_3D_bu =
 "void main()															\n"
 "{                                               						\n"
 "	vec4 tex = _tex2D( samWarp, texcoord.st );     					\n"

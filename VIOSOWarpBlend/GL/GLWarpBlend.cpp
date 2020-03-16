@@ -1,12 +1,72 @@
 #include "GLWarpBlend.h"
 #include "pixelshader.h"
-
 #define GL_EXT_DEFINE_AND_IMPLEMENT
 #include "GLext.h"
 
+int WriteBMP_BGR( int width, int height, VWB_byte const* map, FILE* f )
+{
+	if( nullptr == map || nullptr == f )
+		return -1;
+
+	{
+		const VWB_uint pitchBM = ( (width * 24 + 31 ) / 32 ) * 4;
+		const VWB_uint padd = pitchBM - 3 * width;
+		BITMAPINFOHEADER bmih = {
+			sizeof( BITMAPINFOHEADER ),
+			width,
+			height,
+			1, 24, 0,
+			height * pitchBM,
+			5512, 5512, 0, 0 };
+		BITMAPFILEHEADER bmfh = { 'MB', sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) + bmih.biSizeImage, 0, 0, sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) };
+		fwrite( &bmfh, sizeof( bmfh ), 1, f );
+		fwrite( &bmih, sizeof( bmih ), 1, f );
+		for( VWB_byte const* p = map, *pE = map + 3 * width * height; p != pE; )
+		{
+			for( VWB_byte const* pLE = p + 3 * width; p != pLE; p += 3 )
+			{
+				VWB_byte c[3] = { p[0], p[1], p[2] };
+				fwrite( c, 3, 1, f );
+			}
+			if( 0 != padd )
+			{
+				const int _zero = 0;
+				fwrite( &_zero, padd, 1, f );
+			}
+		}
+	}
+	return 0;
+}
+
+int WriteBMP_RGBA( int width, int height, VWB_byte const* map, FILE* f )
+{
+	if( nullptr == map || nullptr == f )
+		return -1;
+
+	{
+		const VWB_uint pitchBM = width * 4;
+		BITMAPINFOHEADER bmih = {
+			sizeof( BITMAPINFOHEADER ),
+			width,
+			height,
+			1, 32, 0,
+			height * pitchBM,
+			5512, 5512, 0, 0 };
+		BITMAPFILEHEADER bmfh = { 'MB', sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) + bmih.biSizeImage, 0, 0, sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) };
+		fwrite( &bmfh, sizeof( bmfh ), 1, f );
+		fwrite( &bmih, sizeof( bmih ), 1, f );
+		for( VWB_byte const* p = map, *pE = map + 4 * width * height; p != pE; p += 4 )
+		{
+			VWB_byte c[4] = { p[2], p[1], p[0], p[3] };
+			(VWB_uint)fwrite( c, 4, 1, f );
+		}
+	}
+	return 0;
+}
+
 GLfloat colBlack[4] = {0,0,0,0};
 //save a texture to .tif image
-bool savetex (char filename[MAX_PATH],GLint iTex)
+bool savetex( char filename[MAX_PATH], GLint iTex )
 {// get the image data
 	bool bRet = false;
 	GLenum err = glGetError();
@@ -17,7 +77,7 @@ bool savetex (char filename[MAX_PATH],GLint iTex)
 	glGetIntegerv( GL_TEXTURE_BINDING_2D, &ob0 );
 	glBindTexture( GL_TEXTURE_2D, iTex );
 	err = glGetError();
-	GLint x,y;
+	GLint x, y;
 	glGetTexLevelParameteriv( GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &x );
 	glGetTexLevelParameteriv( GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &y );
 	err = glGetError();
@@ -25,30 +85,63 @@ bool savetex (char filename[MAX_PATH],GLint iTex)
 	{
 
 		long imageSize = x * y * 3;
-		if (0 < imageSize)
+		if( 0 < imageSize )
 		{
-			unsigned char *data = new unsigned char[imageSize];
-			if (data)
+			unsigned char* data = new unsigned char[imageSize];
+			if( data )
 			{
-				glGetTexImage(GL_TEXTURE_2D, 0, GL_BGR, GL_UNSIGNED_BYTE, data);// split x and y sizes into bytes
-				if (GL_NO_ERROR == glGetError())
+				glGetTexImage( GL_TEXTURE_2D, 0, GL_BGR, GL_UNSIGNED_BYTE, data );// split x and y sizes into bytes
+				if( GL_NO_ERROR == glGetError() )
 				{
-					int xa = x % 256;
-					int xb = (x - xa) / 256;
-
-					int ya = y % 256;
-					int yb = (y - ya) / 256;
-
-					//assemble the header
-					unsigned char header[18] = { 0,0,2,0,0,0,0,0,0,0,0,0,(unsigned char)xa,(unsigned char)xb,(unsigned char)ya,(unsigned char)yb,24,0 };
-
-					// write header and data to file
 					FILE* f = NULL;
-					if (0 == fopen_s(&f, filename, "wb"))
+					if( 0 == fopen_s( &f, filename, "wb" ) && NULL != f )
 					{
-						fwrite(header, sizeof(header), 1, f);
-						fwrite(data, imageSize, 1, f);
-						fclose(f);
+						WriteBMP_BGR( x, y, data, f );
+						fclose( f );
+						bRet = true;
+					}
+				}
+				delete[] data;
+				data = NULL;
+			}
+		}
+	}
+	glBindTexture( GL_TEXTURE_2D, ob0 );
+	glActiveTexture( oat );
+	return bRet;
+}
+bool savetexRGBA( char filename[MAX_PATH], GLint iTex )
+{// get the image data
+	bool bRet = false;
+	GLenum err = glGetError();
+	GLint oat;
+	GLint ob0;
+	glGetIntegerv( GL_ACTIVE_TEXTURE, &oat );
+	glActiveTexture( GL_TEXTURE0 );
+	glGetIntegerv( GL_TEXTURE_BINDING_2D, &ob0 );
+	glBindTexture( GL_TEXTURE_2D, iTex );
+	err = glGetError();
+	GLint x, y;
+	glGetTexLevelParameteriv( GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &x );
+	glGetTexLevelParameteriv( GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &y );
+	err = glGetError();
+	if( err == glGetError() )
+	{
+
+		long imageSize = x * y * 4;
+		if( 0 < imageSize )
+		{
+			unsigned char* data = new unsigned char[imageSize];
+			if( data )
+			{
+				glGetTexImage( GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );// split x and y sizes into bytes
+				if( GL_NO_ERROR == glGetError() )
+				{
+					FILE* f = NULL;
+					if( 0 == fopen_s( &f, filename, "wb" ) && NULL != f )
+					{
+						WriteBMP_RGBA( x, y, data, f );
+						fclose( f );
 						bRet = true;
 					}
 				}
@@ -446,6 +539,14 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			logStr( 0, "ERROR: %d at glTexImage2D warp:\n", err );
 			throw VWB_ERROR_WARP;
 		}
+		if( 3 <= g_logLevel )
+		{
+			char o[MAX_PATH];
+			strcpy_s( o, g_logFilePath );
+			strcat_s( o, ".texwarp.bmp" );
+			savetexRGBA( o, m_texWarp );
+			logStr( 4, "Blend texture (%dx%d) saved as \"%s\".", m_sizeIn.cx, m_sizeIn.cy, o );
+		}
 
 		glGenTextures( 1, &m_texBlend );
 		err = ::glGetError();
@@ -469,7 +570,14 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			logStr( 0, "ERROR: %d at glTexImage2D blend:\n", err );
 			throw VWB_ERROR_BLEND;
 		}
-
+		if( 3 <= g_logLevel )
+		{
+			char o[MAX_PATH];
+			strcpy_s( o, g_logFilePath );
+			strcat_s( o, ".texblend.bmp" );
+			savetexRGBA( o, m_texBlend );
+			logStr( 4, "Blend texture (%dx%d) saved as \"%s\".", m_sizeIn.cx, m_sizeIn.cy, o );
+		}
 		logStr( 1, "SUCCESS: OGL-Warper initialized.\n" );
 
 	} catch( VWB_ERROR e )
@@ -684,7 +792,7 @@ VWB_ERROR GLWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	{
 		char o[MAX_PATH];
 		strcpy_s( o, g_logFilePath );
-		strcat_s( o, ".texin.tif" );
+		strcat_s( o, ".texin.bmp" );
 		savetex( o, iSrc );
 		logStr( 4, "Input texture (%dx%d) saved as \"%s\".", m_sizeIn.cx, m_sizeIn.cy, o );
 	}

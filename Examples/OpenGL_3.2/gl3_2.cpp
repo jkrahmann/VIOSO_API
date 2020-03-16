@@ -92,9 +92,9 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height);		// Resize And Initialize T
 
 inline void logStr(const char* str)
 {
-	if( NULL != VWB__logString )
-		VWB__logString( 1, str );
-	else
+	//if( NULL != VWB__logString )
+	//	VWB__logString( 1, str );
+	//else
 	{
 		FILE* f;
 		{
@@ -507,7 +507,7 @@ bool DrawGLScene(GLfloat l, GLfloat r, GLfloat b, GLfloat t, GLfloat n, GLfloat 
 	//< start VIOSO API code
 	if( pWarper && VWB_render )
 	{
-		VWB_render( pWarper, VWB_UNDEFINED_GL_TEXTURE, VWB_STATEMASK_DEFAULT|VWB_STATEMASK_PIXEL_SHADER );
+		VWB_render( pWarper, VWB_UNDEFINED_GL_TEXTURE, VWB_STATEMASK_PIXEL_SHADER| VWB_STATEMASK_SHADER_RESOURCE );
 	}
 	//< end VIOSO API code
 #endif //def USE_VIOSO_API

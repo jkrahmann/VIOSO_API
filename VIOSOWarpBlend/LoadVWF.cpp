@@ -283,7 +283,7 @@ VWB_ERROR LoadVWF( VWB_WarpBlendSet& set, char const* path )
 		}
 		else
 		{
-			logStr( 0, "ERROR: LoadVWF: Error %d at open \"%s\"\n", err, pp );
+			logStr( 0, "ERROR: LoadVWF: Error %d at open \"%s\". Missing file?\n", err, pp );
 			ret = VWB_ERROR_VWF_FILE_NOT_FOUND;
 			break;
 		}
