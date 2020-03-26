@@ -90,6 +90,9 @@
     <ClInclude Include="3rdparty\delauney\DelaunayTriangles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DX\DX9WarpBlend.cpp">
@@ -153,10 +156,5 @@
     <None Include="version.rc2">
       <Filter>Resource Files</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="resource.h.subrev">
-      <Filter>Header Files</Filter>
-    </CustomBuild>
   </ItemGroup>
 </Project>

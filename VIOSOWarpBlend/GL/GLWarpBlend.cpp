@@ -532,7 +532,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			logStr( 0, "ERROR: %d at glTexParameterfv:\n", err );
 			throw VWB_ERROR_WARP;
 		}
-		glTexImage2D( GL_TEXTURE_2D, 0, 0 != ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? GL_RGB32F : GL_RG32F, wb.header.width, wb.header.height, 0, GL_RGBA, GL_FLOAT, wb.pWarp );
+		glTexImage2D( GL_TEXTURE_2D, 0, 0 != ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? GL_RGB32F : GL_RG16, wb.header.width, wb.header.height, 0, GL_RGBA, GL_FLOAT, wb.pWarp );
 		err = ::glGetError();
 		if( GL_NO_ERROR != err )
 		{

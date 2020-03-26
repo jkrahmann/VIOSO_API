@@ -1467,13 +1467,17 @@ VWB_ERROR VWB_Warper_base::Render( VWB_param inputTexture, VWB_uint stateMask )
 					HttpRequest const* req = conn->headRequestPtr();
 					if( nullptr != req )
 					{
-						if( !req->files.empty() )
+						if( !req->postData.empty() )
 						{
-							for( auto file = req->files.begin(); file != req->files.end(); file++ )
+							for( auto const& field : req->postData )
 							{
-								if( file->first == "inifile" )
+								if( field.first == "inifile" )
 								{
 									// TODO ovrewrite current ini file
+								}
+								else if( field.first == "jasonrpc" )
+								{
+									//post->second
 								}
 							}
 						}
@@ -1481,10 +1485,6 @@ VWB_ERROR VWB_Warper_base::Render( VWB_param inputTexture, VWB_uint stateMask )
 						{
 							for( auto post = req->postData.begin(); post != req->postData.end(); post++ )
 							{
-								if( post->first == "jasonrpc" )
-								{
-									//post->second
-								}
 							}
 						}
 					}

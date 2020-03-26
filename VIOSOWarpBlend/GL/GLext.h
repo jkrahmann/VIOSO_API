@@ -111,6 +111,10 @@ typedef void (WINAPI  *DEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum 
 #define GL_FRONT_AND_BACK						0x0408
 #define GL_CLAMP_TO_BORDER						0x812D
 #define GL_CLAMP_TO_EDGE						0x812F
+#define GL_R8									0x8229
+#define GL_R16									0x822A
+#define GL_RG8									0x822B
+#define GL_RG16									0x822C
 #define GL_RG32F								0x8230
 #define GL_RGBA32F								0x8814
 #define GL_RGB32F								0x8815

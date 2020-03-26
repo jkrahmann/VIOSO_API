@@ -333,6 +333,19 @@ VWB_ERROR DX11WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				d[0] = s[0];
 				d[1] = s[1];
 			}
+		} //TODO: fix texture sizes and types like GL
+		else
+		{
+			UINT sz = 2 * m_sizeMap.cx;
+			dataWarp.SysMemPitch = sizeof( float ) * sz;
+			sz *= m_sizeMap.cy;
+			dataWarp.SysMemSlicePitch = sizeof( float ) * sz;
+			dataWarp.pSysMem = new float[sz];
+			for( float* d = (float*)dataWarp.pSysMem, *s = (float*)wb.pWarp, *sE = ( (float*)wb.pWarp ) + m_sizeMap.cx * m_sizeMap.cy; s != sE; d += 2, s += 4 )
+			{
+				d[0] = s[0];
+				d[1] = s[1];
+			}
 		}
 
 		D3D11_SUBRESOURCE_DATA dataBlend = {
