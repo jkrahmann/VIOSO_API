@@ -3,12 +3,14 @@ static char s_pixelShaderDX2a[] ="\n"
 "sampler samWarp : register(s1);               \n"
 "sampler samBlend : register(s2);              \n"
 "sampler samCur : register(s3);              \n" // cur texture, rgb for color; if alpha<=0,5 2*alpha is for blending, bigger will invert pixel
+"sampler samBlack : register(s4);\n"			// this is the black level uplift alias beta texture
 "                                                \n"
 "float4x4 matView : register(c0);                \n"
-"float4 bBorder : register(c4);                  \n" // bBorder.x > 0.5 = border on, else off; bBorder.y > 0.5 = blend on, else off
+"float4 bBorder : register(c4);                  \n" // bBorder.x > 0.5 = border on, else off; bBorder.y > 0.5 = blend on, else off, bBorder.z > 0.5 black-level correction on, else off
 "float4 params : register(c5);					 \n"  //x.. content width, y .. content height, z = 1/content width, w = 1/content height
 "float4 offsScale : register(c6);				 \n"  //x.. offset x, y .. offset y, z = scale X, w = scale Y  (u',v')=( (u-x)*z, (v-y)*w )
 "float4 offsScaleCur : register(c7);				\n"  //x.. offset x, y .. offset y, z = scale X, w = scale Y  (u',v')=( (u-x)*z, (v-y)*w )
+"float4 blackBias : register(c8); \n"			// a bias value, serves as a scale of the black texture; thus the texture can have RGB8 and will be up-scaled to fill whole definition range, but has a fine resolution in low intensity values
 "                                                \n"
 "struct VS_OUT {                                 \n"
 "    float4 pos : POSITION;                   \n"
@@ -62,6 +64,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "{                                               \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );      \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );   \n"
+"	float4 black = tex2D( samBlack, vIn.tex );   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -79,6 +82,11 @@ static char s_pixelShaderDX2a[] ="\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                  \n"
 "	return vOut;                                 \n"
@@ -88,6 +96,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "{                                               \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );      \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );   \n"
+"	float4 black = tex2D( samBlack, vIn.tex );   \n"
 "	blend.a = 1;								 \n"
 "	float4 vOut = float4( 0,0,0,1);              \n"
 "	float4 vCur = 0;\n"
@@ -105,6 +114,11 @@ static char s_pixelShaderDX2a[] ="\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
 "	return vOut;                                \n"
@@ -122,6 +136,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "	vIn.tex*= offsScale.zw;                      \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );     \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );  \n"
+"	float4 black = tex2D( samBlack, vIn.tex );   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -139,7 +154,12 @@ static char s_pixelShaderDX2a[] ="\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
-"	}\n"	
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
+"	}\n"
 "	vOut.a = 1;                                 \n"
 "	return vOut;                                \n"
 "}                                               \n"
@@ -148,6 +168,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "{                                               \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );     \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );  \n"
+"	float4 black = tex2D( samBlack, vIn.tex );   \n"
 "	blend.a = 1;  \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
@@ -165,6 +186,11 @@ static char s_pixelShaderDX2a[] ="\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
 "	return vOut;                                \n"
@@ -175,14 +201,16 @@ static char s_pixelShaderDX4[] = "\n"
 "Texture2D texWarp : register(t1);               \n"
 "Texture2D texBlend : register(t2);              \n"
 "Texture2D texCur : register(t3);              \n"
+"Texture2D texBlack : register(t4);\n"			// this is the black level uplift alias beta texture
 "                                                \n"
 "cbuffer ConstantBuffer : register( b0 )                     \n"
 "{																\n"
 "	float4x4 matView;							\n"
-"	float4 bBorder;								\n"
+"	float4 bBorder;								\n"  // bBorder.x > 0.5 = border on, else off; bBorder.y > 0.5 = blend on, else off, bBorder.z > 0.5 black-level correction on, else off
 "	float4 params;								\n"  //x.. content width, y .. content height, z = 1/content width, w = 1/content height
 "	float4 offsScale;	            			\n"  //x.. offset x, y .. offset y, z = scale X, w = scale Y  (u',v')=( (u-x)*z, (v-y)*w )
 "	float4 offsScaleCur;						\n"  //x.. offset x, y .. offset y, z = scale X, w = scale Y  (u',v')=( (u-x)*z, (v-y)*w )
+"	float4 blackBias;							 \n"// a bias value, serves as a scale of the black texture; thus the texture can have RGB8 and will be up-scaled to fill whole definition range, but has a fine resolution in low intensity values
 "}												\n"
 "                                                \n"
 "sampler samLin : register( s0 );               \n"
@@ -256,6 +284,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -273,6 +302,11 @@ static char s_pixelShaderDX4[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                 \n"
 "	return vOut;                                \n"
@@ -282,6 +316,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	blend.a = 1;  \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
@@ -299,6 +334,11 @@ static char s_pixelShaderDX4[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
 "	return vOut;                                \n"
@@ -314,6 +354,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -331,6 +372,11 @@ static char s_pixelShaderDX4[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                 \n"
 "	return vOut;                                \n"
@@ -340,6 +386,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	blend.a = 1;  \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
@@ -357,63 +404,31 @@ static char s_pixelShaderDX4[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
 "	return vOut;                                \n"
 "}                                               \n";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 static char s_pixelShaderDX4_vFlip[] = "\n"
 "Texture2D texContent : register(t0);            \n"
 "Texture2D texWarp : register(t1);               \n"
 "Texture2D texBlend : register(t2);              \n"
 "Texture2D texCur : register(t3);              \n"
+"Texture2D texBlack : register(t4);\n"			// this is the black level uplift alias beta texture
 "                                                \n"
 "cbuffer ConstantBuffer : register( b0 )                     \n"
 "{																\n"
 "	float4x4 matView;							\n"
-"	float4 bBorder;								\n"
+"	float4 bBorder;								\n"  // bBorder.x > 0.5 = border on, else off; bBorder.y > 0.5 = blend on, else off, bBorder.z > 0.5 black-level correction on, else off
 "	float4 params;								\n"  //x.. content width, y .. content height, z = 1/content width, w = 1/content height
 "	float4 offsScale;	            			\n"  //x.. offset x, y .. offset y, z = scale X, w = scale Y  (u',v')=( (u-x)*z, (v-y)*w )
 "	float4 offsScaleCur;						\n"  //x.. offset x, y .. offset y, z = scale X, w = scale Y  (u',v')=( (u-x)*z, (v-y)*w )
+"	float4 blackBias;							 \n"// a bias value, serves as a scale of the black texture; thus the texture can have RGB8 and will be up-scaled to fill whole definition range, but has a fine resolution in low intensity values
 "}												\n"
 "                                                \n"
 "sampler samLin : register( s0 );               \n"
@@ -488,6 +503,7 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < tex.z )\n"
@@ -506,6 +522,11 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}\n"
 //"   float4 vOut = texWarp.Sample( samWarp, vIn.tex );\n"
 "	vOut.a = 1;                                 \n"
@@ -516,6 +537,7 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	blend.a = 1;  \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
@@ -532,6 +554,11 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
 "	return vOut;                                \n"
@@ -547,6 +574,7 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < tex.z )\n"
@@ -565,6 +593,11 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                 \n"
 "	return vOut;                                \n"
@@ -574,6 +607,7 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
+"	float4 black = texBlack( samLin, vIn.tex );   \n"
 "	blend.a = 1;  \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
@@ -590,6 +624,11 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "		vOut.rgb = vCur.a * vCur.rgb + vOut.rgb * ( 1.0 - vCur.a );\n"
 "		if( bBorder.y > 0.5 )                      \n"
 "			vOut.rgb*= blend.rgb;			        \n"
+"		if( bBorder.z > 0.5 )                      \n"
+"		{                                           \n"
+"			vOut += black * blackBias;\n"// offset color to get min average black
+"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
 "	return vOut;                                \n"

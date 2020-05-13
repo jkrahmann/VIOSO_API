@@ -47,20 +47,24 @@ GLchar const* s_szPasstrough_vertex_shader_v330 =
 
 GLchar const* s_fragment_shader_header_v110 =
 "#version 110															\n"
-"uniform sampler2D samContent, samWarp, samBlend;						\n"
+"uniform sampler2D samContent, samWarp, samBlend,samBlack;				\n"
 "uniform bool bBorder;													\n"
 "uniform bool bDoNotBlend;												\n"
+"uniform bool bDoNoBlack;												\n"
 "uniform mat4 matView;													\n"
+"uniform vec4 blackBias;												\n"
 "#define texcoord gl_TexCoord[0]										\n"
 "#define FragColor gl_FragColor											\n"
 "vec4 _tex2D( sampler2D sam, vec2 tex ){ return texture2D( sam, tex ); } \n";
 
 GLchar const* s_fragment_shader_header_v330 =
 "#version 330															\n"
-"uniform sampler2D samContent, samWarp, samBlend;						\n"
+"uniform sampler2D samContent, samWarp, samBlend, samBlack;				\n"
 "uniform bool bBorder;													\n"
 "uniform bool bDoNotBlend;												\n"
+"uniform bool bDoNoBlack;												\n"
 "uniform mat4 matView;													\n"
+"uniform vec4 blackBias;												\n"
 "in vec2 texcoord;														\n"
 "out vec4 FragColor;													\n"
 "vec4 _tex2D( sampler2D sam, vec2 tex ){ return texture( sam, tex ); }   \n";
@@ -118,6 +122,7 @@ GLchar const* s_warp_blend_fragment_shader =
 "{																		\n"
 "	vec4 tex = _tex2D( samWarp,texcoord.st );						\n"
 "	vec4 blend = _tex2D( samBlend, texcoord.st );					\n"
+"	vec4 black = _tex2D( samBlack, texcoord.st );					\n"
 "	if( 0.1 < blend.a )													\n"
 "	{																	\n"
 "		tex.y = 1.0 - tex.y;											\n"
@@ -132,6 +137,11 @@ GLchar const* s_warp_blend_fragment_shader =
 "		FragColor = _texture2D( samContent, tex.xy );					\n"
 "		if( !bDoNotBlend )												\n"
 "			FragColor.rgb*= blend.rgb;									\n"
+"		if( !bDoNoBlack )                      \n"
+"		{                                           \n"
+"			FragColor += black * blackBias;\n"// offset color to get min average black
+"			FragColor /= vec4(1,1,1,1) - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "		FragColor.a = 1.0;												\n"
 "	}																	\n"
 "	else																\n"	
@@ -145,6 +155,7 @@ GLchar const* s_warp_blend_fragment_shader_3D =
 "{                                               						\n"
 "	vec4 tex = _tex2D( samWarp, texcoord.st );     					\n"
 "	vec4 blend = _tex2D( samBlend, texcoord.st );  					\n"
+"	vec4 black = _tex2D( samBlack, texcoord.st );					\n"
 "	if( 0.1 < blend.a )                            						\n"
 "	{                                           						\n"
 "		tex/= blend.a;                            						\n"
@@ -157,6 +168,11 @@ GLchar const* s_warp_blend_fragment_shader_3D =
 "		FragColor = _texture2D( samContent, tex.xy );	 				\n"
 "		if( !bDoNotBlend )												\n"
 "			FragColor.rgb*= blend.rgb;									\n"
+"		if( !bDoNoBlack )                      \n"
+"		{                                           \n"
+"			FragColor += black * blackBias;\n"// offset color to get min average black
+"			FragColor /= vec4(1,1,1,1) - black * blackBias;\n" // scale down to avoid clipping } vOut
+"		}                                           \n"
 "		FragColor.a = 1.0;               								\n"
 "	}                                           						\n"
 "	else																\n"
@@ -164,28 +180,3 @@ GLchar const* s_warp_blend_fragment_shader_3D =
 "		FragColor = vec4( 0.0,0.0,0.0,1.0 );							\n"
 "	}																	\n"
 "}	\n";
-
-GLchar const* s_warp_blend_fragment_shader_3D_bu =
-"void main()															\n"
-"{                                               						\n"
-"	vec4 tex = _tex2D( samWarp, texcoord.st );     					\n"
-"	vec4 blend = _tex2D( samBlend, texcoord.st );  					\n"
-"	if( 0.1 < blend.a )                            						\n"
-"	{                                           						\n"
-"		tex/= blend.a;                            						\n"
-"		tex.a = 1;                            						\n"
-"		tex = matView * tex;                    						\n"
-"		tex.xy/= tex.w;                         						\n"
-"		tex.x/=2.0;                              						\n"
-"		tex.y/=2.0;                              						\n"
-"		tex.xy+= 0.5;                           						\n"
-"		FragColor = _texture2D( samContent, tex.xy );	 				\n"
-"		if( !bDoNotBlend )												\n"
-"			FragColor.rgb*= blend.rgb;									\n"
-"		FragColor.a = 1.0;               								\n"
-"	}                                           						\n"
-"	else																\n"
-"	{																	\n"
-"		FragColor = vec4( 0.0,0.0,0.0,1.0 );							\n"
-"	}																	\n"
-"}																		\n";

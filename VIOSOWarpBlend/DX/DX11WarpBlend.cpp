@@ -295,7 +295,7 @@ VWB_ERROR DX11WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			(UINT)m_sizeMap.cy,//UINT Height;
 			1,//UINT MipLevels;
 			1,//UINT ArraySize;
-			0 != ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32A32_FLOAT : DXGI_FORMAT_R16G16B16A16_UNORM,//DXGI_FORMAT Format;
+			0 != ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32_FLOAT : DXGI_FORMAT_R16G16_UNORM,//DXGI_FORMAT Format;
 			{1,0},//DXGI_SAMPLE_DESC SampleDesc;
 			D3D11_USAGE_DEFAULT,//D3D11_USAGE Usage;
 			D3D11_BIND_SHADER_RESOURCE,//UINT BindFlags;
@@ -315,36 +315,46 @@ VWB_ERROR DX11WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			0,//UINT MiscFlags;
 		};
 
-		D3D11_SUBRESOURCE_DATA dataWarp =
-		{
-			wb.pWarp,
-			sizeof( VWB_WarpRecord ) * m_sizeMap.cx,
-			sizeof( VWB_WarpRecord ) * m_sizeMap.cx * m_sizeMap.cy
+		D3D11_TEXTURE2D_DESC descTexBlack = {
+			(UINT)m_sizeMap.cx,//UINT Width;
+			(UINT)m_sizeMap.cy,//UINT Height;
+			1,//UINT MipLevels;
+			1,//UINT ArraySize;
+			DXGI_FORMAT_R8G8B8A8_UNORM,//DXGI_FORMAT Format;
+			{1,0},//DXGI_SAMPLE_DESC SampleDesc;
+			D3D11_USAGE_DEFAULT,//D3D11_USAGE Usage;
+			D3D11_BIND_SHADER_RESOURCE,//UINT BindFlags;
+			0,//UINT CPUAccessFlags;
+			0,//UINT MiscFlags;
 		};
+
+		D3D11_SUBRESOURCE_DATA dataWarp;
 		if( 0 == ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) )
 		{
 			UINT sz = 2 * m_sizeMap.cx;
-			dataWarp.SysMemPitch = sizeof( float ) * sz;
+			dataWarp.SysMemPitch = sizeof( UINT ) * sz;
 			sz *= m_sizeMap.cy;
-			dataWarp.SysMemSlicePitch = sizeof( float ) * sz;
-			dataWarp.pSysMem = new float[sz];
-			for( float* d = (float*)dataWarp.pSysMem, *s = (float*)wb.pWarp, *sE = ( (float*)wb.pWarp ) + m_sizeMap.cx * m_sizeMap.cy; s != sE; d += 2, s += 4 )
+			dataWarp.SysMemSlicePitch = sizeof( UINT ) * sz;
+			dataWarp.pSysMem = new UINT[sz];
+			UINT* d = (UINT*)dataWarp.pSysMem;
+			for( float *s = (float*)wb.pWarp, *sE = ( (float*)wb.pWarp ) + size_t(m_sizeMap.cx) * size_t(m_sizeMap.cy); s != sE; d += 2, s += 4 )
 			{
 				d[0] = s[0];
 				d[1] = s[1];
 			}
-		} //TODO: fix texture sizes and types like GL
+		}
 		else
 		{
-			UINT sz = 2 * m_sizeMap.cx;
+			float sz = 3 * m_sizeMap.cx;
 			dataWarp.SysMemPitch = sizeof( float ) * sz;
 			sz *= m_sizeMap.cy;
 			dataWarp.SysMemSlicePitch = sizeof( float ) * sz;
 			dataWarp.pSysMem = new float[sz];
-			for( float* d = (float*)dataWarp.pSysMem, *s = (float*)wb.pWarp, *sE = ( (float*)wb.pWarp ) + m_sizeMap.cx * m_sizeMap.cy; s != sE; d += 2, s += 4 )
+			for( float* d = (float*)dataWarp.pSysMem, *s = (float*)wb.pWarp, *sE = ( (float*)wb.pWarp ) + size_t(m_sizeMap.cx) * size_t(m_sizeMap.cy); s != sE; d += 3, s += 4 )
 			{
 				d[0] = s[0];
 				d[1] = s[1];
+				d[2] = s[2];
 			}
 		}
 
@@ -354,30 +364,53 @@ VWB_ERROR DX11WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			sizeof( VWB_BlendRecord2 ) * m_sizeMap.cx * m_sizeMap.cy
 		};
 
+		D3D11_SUBRESOURCE_DATA dataBlack = {
+			wb.pBlack,
+			sizeof( VWB_BlendRecord2 ) * m_sizeMap.cx,
+			sizeof( VWB_BlendRecord2 ) * m_sizeMap.cx * m_sizeMap.cy
+		};
+
 		D3D11_SHADER_RESOURCE_VIEW_DESC descSRVW;
 		D3D11_SHADER_RESOURCE_VIEW_DESC descSRVB;
+		D3D11_SHADER_RESOURCE_VIEW_DESC descSRVBlack;
 		descSRVW.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		descSRVW.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
 		descSRVW.Texture2D.MipLevels = 1;
 		descSRVW.Texture2D.MostDetailedMip = 0;
 		descSRVB = descSRVW;
 		descSRVB.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+		descSRVBlack = descSRVW;
+		descSRVB.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-		ID3D11Texture2D* pTexWarp = NULL, *pTexBlend = NULL;
+		ID3D11Texture2D* pTexWarp = NULL, *pTexBlend = NULL, *pTexBlack = NULL;
 		if(	FAILED( m_device->CreateTexture2D( &descTexW, &dataWarp, &pTexWarp ) ) ||
 			FAILED( m_device->CreateTexture2D( &descTexB, &dataBlend, &pTexBlend ) ) ||
+			wb.pBlack && FAILED( m_device->CreateTexture2D( &descTexB, &dataBlack, &pTexBlack ) ) ||
 			FAILED( m_device->CreateShaderResourceView( pTexWarp, &descSRVW, &m_texWarp ) ) ||
-			FAILED( m_device->CreateShaderResourceView( pTexBlend, &descSRVB, &m_texBlend ) ) )
+			FAILED( m_device->CreateShaderResourceView( pTexBlend, &descSRVB, &m_texBlend ) ) ||
+			wb.pBlack && FAILED( m_device->CreateShaderResourceView( pTexBlack, &descSRVBlack, &m_texBlack ) )
+			)
 		{
 			if( wb.pWarp != dataWarp.pSysMem )
-				delete[]( float* ) dataWarp.pSysMem;
+			{
+				if( 0 == ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) )
+					delete[]( UINT* ) dataWarp.pSysMem;
+				else
+					delete[]( float* ) dataWarp.pSysMem;
+			}
 			logStr( 0, "ERROR: Failed to create lookup textures.\n" );
 			throw VWB_ERROR_SHADER;
 		}
 		SAFERELEASE( pTexWarp );
 		SAFERELEASE( pTexBlend );
+		SAFERELEASE( pTexBlend );
 		if( wb.pWarp != dataWarp.pSysMem )
-			delete[]( float* ) dataWarp.pSysMem;
+		{
+			if( 0 == ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) )
+				delete[]( UINT* ) dataWarp.pSysMem;
+			else
+				delete[]( float* ) dataWarp.pSysMem;
+		}
 
 		ID3DBlob* pVSBlob = NULL;
 		ID3DBlob* pErrBlob = NULL;

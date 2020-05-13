@@ -51,6 +51,7 @@ struct SimpleVertex
 //d3d11.lib;d3dcompiler.lib;d3dx11d.lib;d3dx9d.lib;dxerr.lib;dxguid.lib;winmm.lib;comctl32.lib
 
 //#define USE_VIOSO
+
 #ifdef USE_VIOSO
 #define VIOSOWARPBLEND_DYNAMIC_DEFINE_IMPLEMENT
 #include "../../Include/VIOSOWarpBlend.h"
@@ -102,7 +103,8 @@ char const g_szShader[] =
 "//-------------------------------------------------------------\n"
 "float4 PS( PS_INPUT input) : SV_Target							\n"
 "{																\n"
-"    return input.Color;										\n"
+//"    return input.Color;										\n"
+"    return float4(1,0,0,1);									\n"
 "}																\n"
 "\n\0";
 
@@ -377,7 +379,7 @@ OutWnd::OutWnd( LPCRECT pPos, std::string const& name ) :
 
 	UINT createDeviceFlags = 0;
 	#ifdef _DEBUG
-	// createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+	 createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 	#endif
 
 	D3D_DRIVER_TYPE driverTypes[] =
@@ -523,7 +525,7 @@ OutWnd::OutWnd( LPCRECT pPos, std::string const& name ) :
 		throw std::exception( "D3DCompile failed" );
 
 	// Create vertex buffer
-	int n = g_nnCubes;
+	UINT n = g_nnCubes;
 	SimpleVertex* vertices = new SimpleVertex[n * 8];
 	WORD* indices = new WORD[n * 36];
 	float sz = 10.0f / ( 3 * g_nCubes - 1 );
