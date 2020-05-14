@@ -4,8 +4,8 @@
 #include "Platform.h"
 //#include "../Include/VWBTypes.h"
 #include "SPtr.h"
-#include <queue>
 #include <list>
+#include <queue>
 #include <map>
 #include <string>
 
@@ -406,11 +406,11 @@ protected:
 	SocketAddress m_peerAddr;
 	TCPListener* m_pListener;
 	Server* m_pServer;
-	VWB_Mutex m_mtxRWIn;
-	VWB_Mutex m_mtxRWOut;
+	mutable std::mutex m_mtxRWIn;
+	mutable std::mutex m_mtxRWOut;
 	timeval m_sto;
 
-	TCPConnection() {}
+	TCPConnection() {} // private
 	TCPConnection( TCPConnection const& other ) {}
 public:
 	TCPConnection( Socket const& other, SocketAddress const& peerAddress, TCPListener* pL, Server* pServer );
@@ -536,8 +536,8 @@ protected:
 	FD_SET		m_readers;
 	FD_SET		m_writers;
 	int			m_modalState;
-	VWB_Thread	m_thread;
-	VWB_Mutex	m_mtxGlobal;
+	std::thread	m_thread;
+	std::mutex	m_mtxGlobal;
 public:
 	timeval m_sto;
 	Server();
@@ -557,7 +557,7 @@ public:
 	bool isRunningModal();
 private: 
 	u_int modalLoop();
-	static u_int __stdcall _theadFn( void* param );
+	static void __stdcall _theadFn( void* param );
 };
 
 #endif //ndef VWB_SOCKET_HPP

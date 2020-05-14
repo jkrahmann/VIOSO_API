@@ -268,7 +268,7 @@ void CTrackerSimDlg::OnInitMenuPopup( CMenu* pPopupMenu, UINT nIndex, BOOL bSysM
 	CCmdUI ui;
 	UINT const c = pPopupMenu->GetMenuItemCount();
 
-	for( i = c - 1; i < c; i-- )
+	for( i = c - 1; i > c; i-- )
 	{
 		ui.m_nID = pPopupMenu->GetMenuItemID( i );
 		ui.m_nIndex = i;

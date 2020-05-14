@@ -616,8 +616,6 @@ TCPConnection::TCPConnection( Socket const& other, SocketAddress const& peerAddr
 , m_pServer( pServer )
 , m_bPendingSend( false )
 , m_iReadSize(0)
-, m_mtxRWIn( VWB_createMutex(false) )
-, m_mtxRWOut( VWB_createMutex(false) )
 , m_sto()
 {
 	getRecvBuffSize( m_iRcvBuffSize );
@@ -638,8 +636,6 @@ TCPConnection::TCPConnection( SocketAddress connectTo ) // client connection
 , m_pServer( NULL )
 , m_bPendingSend( false )
 , m_iReadSize(0)
-, m_mtxRWIn( VWB_createMutex(false) )
-, m_mtxRWOut( VWB_createMutex(false) )
 , m_sto()
 {
 	char buff[20];
@@ -657,10 +653,6 @@ TCPConnection::TCPConnection( SocketAddress connectTo ) // client connection
 
 TCPConnection::~TCPConnection()
 {
-	if( m_mtxRWIn )
-		VWB_closeMutex( m_mtxRWIn );
-	if( m_mtxRWOut )
-		VWB_closeMutex( m_mtxRWOut );
 	if( *this )
 		logStr( 2, "Info: TCPConnection %08x closed.\n", (SOCKET)*this );
 }
@@ -669,6 +661,7 @@ int TCPConnection::write( char const* buff, int size )
 {
 	int r = 0;
 	VWB_LockedStatement( m_mtxRWOut )
+	//if( VWB_MutexLock __l = VWB_MutexLock( m_mtxRWOut ) )
 	{
 		while( size > m_iSndBuffSize )
 		{
@@ -1412,8 +1405,6 @@ int HttpRequest::parseMultipartBody( std::string const& body, std::string bound,
 
 Server::Server() 
 : m_modalState(0)
-, m_thread(0)
-, m_mtxGlobal( VWB_createMutex(false) ) 
 {
 	ifStartSockets() 
 	{
@@ -1426,8 +1417,6 @@ Server::Server()
 
 Server::Server( SPtr<SockIn> const& s, bool bRunModal )
 : m_modalState(0)
-, m_thread(0)
-, m_mtxGlobal( VWB_createMutex(false) )
 {
 	ifStartSockets()
 	{
@@ -1446,14 +1435,11 @@ Server::~Server()
 	{
 		m_listeners.clear();
 	}
-	if( m_thread )
+	if( m_thread.joinable() )
 	{
 		m_modalState = 0;
-		VWB_waitThread( m_thread, INFINITE );
-		VWB_closeThread( m_thread );
+		m_thread.join();
 	}
-	if( m_mtxGlobal )
-		VWB_closeMutex( m_mtxGlobal );
 	closeSockets();
 }
 
@@ -1578,11 +1564,9 @@ int Server::endModal( int code )
 	if( MODALSTATE_RUN == m_modalState )
 	{
 		m_modalState = code;
-		if( m_thread )
+		if( m_thread.joinable() )
 		{
-			VWB_waitThread( m_thread, INFINITE );
-			VWB_closeThread( m_thread );
-			m_thread = 0;
+			m_thread.join();
 		}
 	}
 	return m_modalState;
@@ -1590,7 +1574,7 @@ int Server::endModal( int code )
 
 int Server::doModal()
 {
-	if( 0 != m_thread )
+	if( m_thread.joinable() )
 	{
 		if( MODALSTATE_RUN == m_modalState )
 		{
@@ -1598,12 +1582,11 @@ int Server::doModal()
 		}
 		else
 		{
-			VWB_closeThread( m_thread );
-			m_thread = 0;
+			m_thread.join();
 		}
 	}
-	m_thread = VWB_startThread( &Server::_theadFn, this );
-	if( 0 != m_thread )
+	m_thread.swap( std::thread( Server::_theadFn, this ) );
+	if( m_thread.joinable() )
 		return 0;
 	logStr( 0, "Server: FATAL ERROR cannot sart listener loop.\n" );
 	return SOCKET_ERROR;
@@ -1635,9 +1618,10 @@ bool Server::isRunningModal()
 	return MODALSTATE_RUN == m_modalState; 
 }
 
-u_int Server::_theadFn( void* param )
+void Server::_theadFn( void* param )
 {
 	if( NULL == param )
-		return SOCKET_ERROR;
-	return ((Server*)param)->modalLoop();
+		return;
+	//return
+	((Server*)param)->modalLoop();
 }
