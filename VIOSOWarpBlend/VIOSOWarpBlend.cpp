@@ -478,18 +478,20 @@ VWB_ERROR VWB_CreateW( void* pDxDevice, wchar_t const* szConfigFile, wchar_t con
 
 VWB_ERROR VWB_Init( VWB_Warper* pWarper )
 {
+	return VWB_InitExt( pWarper, nullptr );
+}
+
+VWB_ERROR VWB_InitExt( VWB_Warper* pWarper, VWB_WarpBlendSet* extSet )
+{
 	if( NULL == pWarper )
 		return VWB_ERROR_PARAMETER;
 
 	VWB_ERROR err = VWB_ERROR_NONE;
-#ifdef _DEBUG
-	Scene SC;
-	loadDAE( SC, "..\\res\\dome_1.5m.dae" );
-#endif
 
 #ifdef _DEBUG
 	if( pWarper->port )
 	{
+		SocketAddress sa = Socket::gethostbyname( "localhost" );
 		if(0){
 			TCPConnection conn( SocketAddress( "vioso.com", 80 ) );
 			if( conn )
@@ -535,26 +537,41 @@ VWB_ERROR VWB_Init( VWB_Warper* pWarper )
 		}
 	}
 #endif //def _DEBUG
-
-	VWB_WarpBlendSet set;
-	err = LoadVWF( set, ((VWB_Warper_base*)pWarper)->calibFile );
-	//if( ( VWB_ERROR_VWF_LOAD == err ) ||
-	//	( VWB_ERROR_VWF_FILE_NOT_FOUND == err && VWB_ERROR_NONE != CreateDummyVWF( set, ((VWB_Warper_base*)pWarper)->calibFile ) ) ||
-	//    ( VWB_ERROR_NONE == err  && !VerifySet( set ) ) )
-	if( ( VWB_ERROR_NONE != err ) ||
-	    !VerifySet( set ) )
+	
+	if( nullptr != extSet )
 	{
-		logStr( 0, "ERROR: LoadVWF: Failed to load or verify set.\n" );
-		return err;
+		if ((VWB_ERROR_NONE != err) || !VerifySet(*extSet))
+		{
+			logStr(0, "ERROR: Failed to verify given set.\n");
+			return err;
+		}
+		else
+			err = VWB_ERROR_NONE;
+
+		VWB_Warper_base* p = (VWB_Warper_base*)pWarper;
+		err = p->Init( *extSet );
 	}
 	else
-		err = VWB_ERROR_NONE;
+	{
+		VWB_WarpBlendSet set;
+		err = LoadVWF(set, ((VWB_Warper_base*)pWarper)->calibFile);
+		//if( ( VWB_ERROR_VWF_LOAD == err ) ||
+		//	( VWB_ERROR_VWF_FILE_NOT_FOUND == err && VWB_ERROR_NONE != CreateDummyVWF( set, ((VWB_Warper_base*)pWarper)->calibFile ) ) ||
+		//    ( VWB_ERROR_NONE == err  && !VerifySet( set ) ) )
 
-	VWB_Warper_base* p = (VWB_Warper_base*)pWarper;
-	err = p->Init( set );
-	DeleteVWF( set );
+		if ((VWB_ERROR_NONE != err) || !VerifySet(set))
+		{
+			logStr(0, "ERROR: LoadVWF: Failed to load or verify set.\n");
+			return err;
+		}
+		else
+			err = VWB_ERROR_NONE;
+
+		VWB_Warper_base* p = (VWB_Warper_base*)pWarper;
+		err = p->Init(set);
+		DeleteVWF(set);
+	}	
 	return err;
-
 }
 
 void VWB_Destroy( VWB_Warper* pWarper )
@@ -714,6 +731,10 @@ VWB_Warper_base::VWB_Warper_base()
 	m_viewSizes.y = 1;
 	m_viewSizes.z = 1;
 	m_viewSizes.w = 1;
+	m_blackBias.x = 0;
+	m_blackBias.y = 0;
+	m_blackBias.z = 0;
+	m_blackBias.w = 0;
 }
 
 VWB_Warper_base::~VWB_Warper_base()
@@ -773,8 +794,8 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 
 	VWB_WarpBlend& wb = *wbs[calibIndex];
 
-    m_bBorder = 0 != ( FLAG_SP_WARPFILE_HEADER_BORDER & wbs[calibIndex]->header.flags );
-	m_bDynamicEye = 0 != ( FLAG_SP_WARPFILE_HEADER_3D & wbs[calibIndex]->header.flags );
+    m_bBorder = 0 != ( FLAG_WARPFILE_HEADER_BORDER & wbs[calibIndex]->header.flags );
+	m_bDynamicEye = 0 != ( FLAG_WARPFILE_HEADER_3D & wbs[calibIndex]->header.flags );
 	if( m_bDynamicEye )
 		logStr( 2, "3D data found in mapping. Using DYNAMIC EYE settings.\n" );
 	else
@@ -782,6 +803,10 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 
 	m_sizeMap.cx = wbs[calibIndex]->header.width;
 	m_sizeMap.cy = wbs[calibIndex]->header.height;
+	m_blackBias.x = wbs[calibIndex]->header.black[0];
+	m_blackBias.y = wbs[calibIndex]->header.black[1];
+	m_blackBias.z = wbs[calibIndex]->header.black[2];
+	m_blackBias.w = wbs[calibIndex]->header.black[3];
 
 	VWB_MAT44f B( trans );
 	m_mBaseI = B.Inverted();
@@ -811,10 +836,9 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 			p->r = 65535;
 			p->g = 65535;
 			p->b = 65535;
-			p->a = 65535;
 		}
-		wb.header.flags&= ~FLAG_SP_WARPFILE_HEADER_BLENDV3;
-		wb.header.flags|=  FLAG_SP_WARPFILE_HEADER_BLENDV2;
+		wb.header.flags&= ~FLAG_WARPFILE_HEADER_BLENDV3;
+		wb.header.flags|=  FLAG_WARPFILE_HEADER_BLENDV2;
 	}
 
 	// regardless of the given format, prepare blend as U16 NORM
@@ -823,7 +847,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 	{
 		logStr( 1, "Adapting gamma by %.5f\n", gamma );
 		VWB_float g = 1.0f/gamma;
-		if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_BLENDV3 )
+		if( wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV3 )
 		{
 			VWB_BlendRecord2* pDst = new VWB_BlendRecord2[m_sizeMap.cx * m_sizeMap.cy];
 			VWB_BlendRecord2* pD = pDst;
@@ -834,12 +858,12 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 				pD->b = VWB_word( pow( p->b, g ) * 65535.0f );
 				pD->a = VWB_word( p->a * 65535.0f );
 			}
-			wb.header.flags&= ~FLAG_SP_WARPFILE_HEADER_BLENDV3;
-			wb.header.flags|= FLAG_SP_WARPFILE_HEADER_BLENDV2;
+			wb.header.flags&= ~FLAG_WARPFILE_HEADER_BLENDV3;
+			wb.header.flags|= FLAG_WARPFILE_HEADER_BLENDV2;
 			delete[] wb.pBlend3;
 			wb.pBlend2 = pDst;
 		}
-		else if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_BLENDV2 )
+		else if( wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV2 )
 		{
 			for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++ )
 			{
@@ -860,14 +884,14 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 				pD->b = VWB_word( pow( VWB_float( p->b ) / 255.0f, g ) * 65535.0f );
 				pD->a = VWB_word( p->a ) * 255;
 			}
-			wb.header.flags|= FLAG_SP_WARPFILE_HEADER_BLENDV2;
+			wb.header.flags|= FLAG_WARPFILE_HEADER_BLENDV2;
 			delete[] wb.pBlend;
 			wb.pBlend2 = pDst;
 		}
 	}
-	else if( !(wb.header.flags & FLAG_SP_WARPFILE_HEADER_BLENDV2) )
+	else if( !(wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV2) )
 	{ // change to VWB_BlendRecord2 anyway...
-		if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_BLENDV3 )
+		if( wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV3 )
 		{
 			VWB_BlendRecord2* pDst = new VWB_BlendRecord2[m_sizeMap.cx * m_sizeMap.cy];
 			VWB_BlendRecord2* pD = pDst;
@@ -878,8 +902,8 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 				pD->b = VWB_word( p->b * 65535.0f );
 				pD->a = VWB_word( p->a * 65535.0f );
 			}
-			wb.header.flags&= ~FLAG_SP_WARPFILE_HEADER_BLENDV3;
-			wb.header.flags|=  FLAG_SP_WARPFILE_HEADER_BLENDV2;
+			wb.header.flags&= ~FLAG_WARPFILE_HEADER_BLENDV3;
+			wb.header.flags|=  FLAG_WARPFILE_HEADER_BLENDV2;
 			delete[] wb.pBlend3;
 			wb.pBlend2 = pDst;
 		}
@@ -894,15 +918,15 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 				pD->b = VWB_word( p->b * 255.0f );
 				pD->a = VWB_word( p->a * 255.0f );
 			}
-			wb.header.flags|=  FLAG_SP_WARPFILE_HEADER_BLENDV2;
+			wb.header.flags|=  FLAG_WARPFILE_HEADER_BLENDV2;
 			delete[] wb.pBlend;
 			wb.pBlend2 = pDst;
 		}
 	}
 
-	// put clipping channel of warp to 'a' channel of blend
+	// put clipping channel of warp to a channel of blend
 		VWB_WarpRecord* pW = wb.pWarp;
-	if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D )
+	if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
 	{
 		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
 		{
@@ -917,7 +941,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 		}
 	}
 
-	if( 0 == ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) )
+	if( 0 == ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) )
 	{
 		// in case of 2D mapping
 		// calculate bounds, init with opposite extremum
@@ -1230,7 +1254,7 @@ void VWB_Warper_base::Defaults()
 VWB_ERROR VWB_Warper_base::AutoView( VWB_WarpBlend const& wb )
 {
 	// test if blend3
-	if( !( FLAG_SP_WARPFILE_HEADER_BLENDV2 & wb.header.flags ) )
+	if( !( FLAG_WARPFILE_HEADER_BLENDV2 & wb.header.flags ) )
 		return VWB_ERROR_PARAMETER;
 
 	// check base matrix, if left or right handed...
@@ -1467,32 +1491,24 @@ VWB_ERROR VWB_Warper_base::Render( VWB_param inputTexture, VWB_uint stateMask )
 					HttpRequest const* req = conn->headRequestPtr();
 					if( nullptr != req )
 					{
-						if( !req->postData.empty() )
+						HttpRequest::PostParamMap::const_iterator it = req->postData.find( "inifile" );
+						if( it != req->postData.end() && !it->second.file.empty() )
 						{
-							for( auto const& field : req->postData )
-							{
-								if( field.first == "inifile" )
-								{
-									// TODO ovrewrite current ini file
-								}
-								else if( field.first == "jasonrpc" )
-								{
-									//post->second
-								}
-							}
+							it->second.file;
+							// TODO ovrewrite current ini file
 						}
-						if( !req->postData.empty() )
+						it = req->postData.find( "jasonrpc" );
+						if( it != req->postData.end() && !it->second.value.empty() )
 						{
-							for( auto post = req->postData.begin(); post != req->postData.end(); post++ )
-							{
-							}
+							it->second.value;
+							// TODO ovrewrite current ini file
 						}
 					}
 				}
 			}
 		}
 	}
-		return VWB_ERROR_NONE;
+	return VWB_ERROR_NONE;
 }
 
 VWB_ERROR VWB_Warper_base::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMesh& mesh )
@@ -2034,40 +2050,40 @@ VWB_uint subMesh( VWB_WarpBlendMesh::idx_t& idx, VWB_WarpBlendMesh::idx_t& oldRe
 */
 	typedef enum ESPUMA_CtrlPointUseFlag
 	{
-		FLAG_SP_CTRLPT_USE_UNSPECIFIC				=0x00,							///<   unspecific using
-		FLAG_SP_CTRLPT_USE_SELECTED					=0x01,							///<   point is selected
-		FLAG_SP_CTRLPT_USE_SELECTED_TANGENT			=0x02,							///<   a tangent to point is selected
-		FLAG_SP_CTRLPT_USE_SELECTED_TANGENT_SECOND	=0x04,							///<   second tangent point is selected
-		FLAG_SP_CTRLPT_USE_SELECTED_LINE_RIGHT		=0x08,							///<   line to the right is selected
-		FLAG_SP_CTRLPT_USE_SELECTED_LINE_BOTTOM		=0x10,							///<   line down is selected
-		FLAG_SP_CTRLPT_USE_SELECTED_ALL				=0x1F
+		FLAG_CTRLPT_USE_UNSPECIFIC				=0x00,							///<   unspecific using
+		FLAG_CTRLPT_USE_SELECTED					=0x01,							///<   point is selected
+		FLAG_CTRLPT_USE_SELECTED_TANGENT			=0x02,							///<   a tangent to point is selected
+		FLAG_CTRLPT_USE_SELECTED_TANGENT_SECOND	=0x04,							///<   second tangent point is selected
+		FLAG_CTRLPT_USE_SELECTED_LINE_RIGHT		=0x08,							///<   line to the right is selected
+		FLAG_CTRLPT_USE_SELECTED_LINE_BOTTOM		=0x10,							///<   line down is selected
+		FLAG_CTRLPT_USE_SELECTED_ALL				=0x1F
 	}ESPUMA_CtrlPointUseFlag;
 
 	typedef enum ESPUMA_CtrlPointPosFlag
 	{
-		FLAG_SP_CTRLPT_POS_NORMAL=0x0,												///<   normal control point
-		FLAG_SP_CTRLPT_POS_UNKNOWN=0x1,												///<   indicates an control point with unknown position
-		FLAG_SP_CTRLPT_POS_BORDER_TOP=0x2,											///<   indicates that the control point is located on the top border of the control point mesh
-		FLAG_SP_CTRLPT_POS_BORDER_LEFT=0x4,											///<   indicates that the control point is located on the left border of the control point mesh
-		FLAG_SP_CTRLPT_POS_BORDER_RIGHT=0x8,										///<   indicates that the control point is located on the right border of the control point mesh
-		FLAG_SP_CTRLPT_POS_BORDER_BOTTOM=0x10,										///<   indicates that the control point is located on the bottom border of the control point mesh
-		FLAG_SP_CTRLPT_POS_BORDER_DIAGONAL=0x20,									///<   indicates that the control point is located on the diagonal border of the control point mesh
-		FLAG_SP_CTRLPT_POS_CLONE=0x40,												///<   indicates that the control point is only a clone of another point
-		FLAG_SP_CTRLPT_POS_BORDER= FLAG_SP_CTRLPT_POS_BORDER_TOP |					///<   all border flags
-								   FLAG_SP_CTRLPT_POS_BORDER_LEFT | 
-								   FLAG_SP_CTRLPT_POS_BORDER_RIGHT | 
-								   FLAG_SP_CTRLPT_POS_BORDER_BOTTOM | 
-								   FLAG_SP_CTRLPT_POS_BORDER_DIAGONAL,
-		FLAG_SP_CTRLPT_POS_BORDER_LR= FLAG_SP_CTRLPT_POS_BORDER_LEFT | 				///<   right and left border
-									  FLAG_SP_CTRLPT_POS_BORDER_RIGHT,
-		FLAG_SP_CTRLPT_POS_TOPLEFT=		FLAG_SP_CTRLPT_POS_BORDER_TOP |				///<   edge top left, indicates the origin of the mesh
-										FLAG_SP_CTRLPT_POS_BORDER_LEFT,
-		FLAG_SP_CTRLPT_POS_TOPRIGHT=	FLAG_SP_CTRLPT_POS_BORDER_TOP |				///<   edge top right
-										FLAG_SP_CTRLPT_POS_BORDER_RIGHT,
-		FLAG_SP_CTRLPT_POS_BOTTOMLEFT=	FLAG_SP_CTRLPT_POS_BORDER_BOTTOM |			///<   edge bottom left
-										FLAG_SP_CTRLPT_POS_BORDER_LEFT,
-		FLAG_SP_CTRLPT_POS_BOTTOMRIGHT= FLAG_SP_CTRLPT_POS_BORDER_BOTTOM |			///<   edge bottom right
-										FLAG_SP_CTRLPT_POS_BORDER_RIGHT
+		FLAG_CTRLPT_POS_NORMAL=0x0,												///<   normal control point
+		FLAG_CTRLPT_POS_UNKNOWN=0x1,												///<   indicates an control point with unknown position
+		FLAG_CTRLPT_POS_BORDER_TOP=0x2,											///<   indicates that the control point is located on the top border of the control point mesh
+		FLAG_CTRLPT_POS_BORDER_LEFT=0x4,											///<   indicates that the control point is located on the left border of the control point mesh
+		FLAG_CTRLPT_POS_BORDER_RIGHT=0x8,										///<   indicates that the control point is located on the right border of the control point mesh
+		FLAG_CTRLPT_POS_BORDER_BOTTOM=0x10,										///<   indicates that the control point is located on the bottom border of the control point mesh
+		FLAG_CTRLPT_POS_BORDER_DIAGONAL=0x20,									///<   indicates that the control point is located on the diagonal border of the control point mesh
+		FLAG_CTRLPT_POS_CLONE=0x40,												///<   indicates that the control point is only a clone of another point
+		FLAG_CTRLPT_POS_BORDER= FLAG_CTRLPT_POS_BORDER_TOP |					///<   all border flags
+								   FLAG_CTRLPT_POS_BORDER_LEFT | 
+								   FLAG_CTRLPT_POS_BORDER_RIGHT | 
+								   FLAG_CTRLPT_POS_BORDER_BOTTOM | 
+								   FLAG_CTRLPT_POS_BORDER_DIAGONAL,
+		FLAG_CTRLPT_POS_BORDER_LR= FLAG_CTRLPT_POS_BORDER_LEFT | 				///<   right and left border
+									  FLAG_CTRLPT_POS_BORDER_RIGHT,
+		FLAG_CTRLPT_POS_TOPLEFT=		FLAG_CTRLPT_POS_BORDER_TOP |				///<   edge top left, indicates the origin of the mesh
+										FLAG_CTRLPT_POS_BORDER_LEFT,
+		FLAG_CTRLPT_POS_TOPRIGHT=	FLAG_CTRLPT_POS_BORDER_TOP |				///<   edge top right
+										FLAG_CTRLPT_POS_BORDER_RIGHT,
+		FLAG_CTRLPT_POS_BOTTOMLEFT=	FLAG_CTRLPT_POS_BORDER_BOTTOM |			///<   edge bottom left
+										FLAG_CTRLPT_POS_BORDER_LEFT,
+		FLAG_CTRLPT_POS_BOTTOMRIGHT= FLAG_CTRLPT_POS_BORDER_BOTTOM |			///<   edge bottom right
+										FLAG_CTRLPT_POS_BORDER_RIGHT
 	}ESPUMA_CtrlPointPosFlag;
 
 	typedef struct SPPair3f
@@ -2161,7 +2177,7 @@ int ComputeTriangluation( DynSPPointPairList3f& lPoints, DynLongList& lTriangleI
 					pW1 = pW + width;
 					if( pW1->z > 0.5f ) // point is valid
 					{
-						pP->fPos|=FLAG_SP_CTRLPT_POS_BORDER_BOTTOM;
+						pP->fPos|=FLAG_CTRLPT_POS_BORDER_BOTTOM;
 						pP->fUse++;
 					}
 				}
@@ -2176,14 +2192,14 @@ int ComputeTriangluation( DynSPPointPairList3f& lPoints, DynLongList& lTriangleI
 						pW1++; // look below right
 						if( pW1->z > 0.5f ) // valid
 						{
-							pP->fPos|=FLAG_SP_CTRLPT_POS_BORDER_DIAGONAL;
+							pP->fPos|=FLAG_CTRLPT_POS_BORDER_DIAGONAL;
 							pP->fUse++;
 						}
 					}
 					pW1 = pW + 1; // look right
 					if( pW1->z > 0.5f )
 					{
-						pP->fPos|=FLAG_SP_CTRLPT_POS_BORDER_RIGHT;
+						pP->fPos|=FLAG_CTRLPT_POS_BORDER_RIGHT;
 						pP->fUse++;
 					}
 				}
@@ -2219,9 +2235,9 @@ int ComputeTriangluation( DynSPPointPairList3f& lPoints, DynLongList& lTriangleI
 				pL1=&lTriangleIdx[q];
 				pL1[0]=idx;
 				f=pP->fPos;
-				if(f & FLAG_SP_CTRLPT_POS_BORDER_DIAGONAL)
+				if(f & FLAG_CTRLPT_POS_BORDER_DIAGONAL)
 				{
-					if(f & FLAG_SP_CTRLPT_POS_BORDER_RIGHT)
+					if(f & FLAG_CTRLPT_POS_BORDER_RIGHT)
 					{
 						pL1[1]=pL[1];
 						pL1[2]=pL2[1];
@@ -2252,7 +2268,7 @@ int ComputeTriangluation( DynSPPointPairList3f& lPoints, DynLongList& lTriangleI
 					// go from current point right
 					for( pL2=pL1, qH=0; qH<=qConsolidateSteps ; qH++, pL2++)
 					{
-						if(!(lPoints[*pL2].fPos & FLAG_SP_CTRLPT_POS_BORDER_RIGHT))
+						if(!(lPoints[*pL2].fPos & FLAG_CTRLPT_POS_BORDER_RIGHT))
 						{ // point has no right neighboar
 							qH++;
 							break;
@@ -2272,7 +2288,7 @@ int ComputeTriangluation( DynSPPointPairList3f& lPoints, DynLongList& lTriangleI
 						qHMin=qH;
 
 					// break loop if no valid bottom point is there
-					if(!(lPoints[*pL1].fPos & FLAG_SP_CTRLPT_POS_BORDER_BOTTOM))
+					if(!(lPoints[*pL1].fPos & FLAG_CTRLPT_POS_BORDER_BOTTOM))
 					{
 						break;
 					}

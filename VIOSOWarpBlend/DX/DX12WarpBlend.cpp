@@ -18,7 +18,6 @@ DX12WarpBlend::DX12WarpBlend( ID3D12CommandQueue* pCQ )
 , m_device( NULL )
 , m_srvHeap( NULL )
 , m_pipState( NULL )
-, m_cl(NULL)
 {
 	if( NULL == pCQ )
 		throw( VWB_ERROR_PARAMETER );

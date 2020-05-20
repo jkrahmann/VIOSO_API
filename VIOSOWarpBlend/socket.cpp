@@ -48,12 +48,8 @@ SocketAddress::SocketAddress(char const* url, unsigned short port)
 		hints.ai_protocol = IPPROTO_TCP;
 		if( 0 == getaddrinfo( url, portStr, &hints, &pai ) && pai )
 		{
-			sin_family = AF_INET;
+			*this = *( struct sockaddr_in* ) pai->ai_addr;
 			sin_port = Socket::hton( port );
-		#pragma warning( push )
-		#pragma warning( disable : 4311 )
-			sin_addr.s_addr = (ULONG)pai->ai_addr;
-		#pragma warning( pop )
 			freeaddrinfo( pai );
 		}
 		else
@@ -396,13 +392,8 @@ SocketAddress	Socket::gethostbyname(const std::string& name, const unsigned shor
 	hints.ai_protocol = IPPROTO_TCP;
 	if( 0 == getaddrinfo( name.c_str(), portStr, &hints, &pai ) && pai )
 	{
-		sockaddr_in sTmp;
-		sTmp.sin_family = AF_INET;
-		sTmp.sin_port = ::htons( port );
-		#pragma warning( push )
-		#pragma warning( disable : 4311 )
-		sTmp.sin_addr.s_addr = (ULONG)pai->ai_addr;
-		#pragma warning( pop )
+		sockaddr_in sTmp = *( struct sockaddr_in* ) pai->ai_addr;
+		sTmp.sin_port = hton( port );
 		freeaddrinfo( pai );
 		return sTmp;
 	}
@@ -448,12 +439,7 @@ std::vector<in_addr> Socket::getLocalIPList()
 			{
 				if( AF_INET == p->ai_family && 4 == p->ai_addrlen )
 				{
-					in_addr a;
-					#pragma warning( push )
-					#pragma warning( disable : 4311 )
-					a.s_addr = (ULONG)p->ai_addr;
-					#pragma warning( pop )
-					l.push_back( a );
+					l.push_back((( struct sockaddr_in* )pai->ai_addr)->sin_addr);
 				}
 			}
 			freeaddrinfo( pai );
@@ -1625,3 +1611,178 @@ void Server::_theadFn( void* param )
 	//return
 	((Server*)param)->modalLoop();
 }
+
+
+////////////////////////////////////// copy paste functions; TODO: wrap a nice HTTP client class arround ///////////////////////
+// return
+// response code
+int ParseStdResponseCode( LPCSTR pStr, DWORD qStr )
+{
+	if( !( pStr && qStr ) )
+		return 500;
+
+	int i;
+	DWORD q;
+	const char* pLnEnd;
+	const char* pTotEnd = pStr + qStr;
+
+	for( pLnEnd = pStr; ( pLnEnd < pTotEnd ) && ( *pLnEnd != '\n' ); pLnEnd++ );
+	q = (DWORD)( pLnEnd - pStr );
+	if( ( q > 11 ) && !_strnicmp( pStr, "http/", 5 ) )
+	{
+		for( pStr += 5; ( pStr < pLnEnd ) && ( *pStr != ' ' ); pStr++ );
+		for( pStr++; ( pStr < pLnEnd ) && ( *pStr == ' ' ); pStr++ );
+		if( pStr < pLnEnd )
+		{
+			i = atoi( pStr );
+			if( i >= 0 )
+				return i;
+		}
+	}
+	else if( q )
+	{
+		char strTmp[32];
+
+		if( q > 31 )
+			q = 31;
+		memcpy( strTmp, pStr, q );
+		strTmp[q] = 0x0;
+		i = atoi( strTmp );
+		if( i > 0 )
+			return 200;
+	}
+
+	return 500;
+}
+
+BOOL SendHTTP( LPCSTR szHost, unsigned short iPort, LPCSTR szURI, LPCSTR szName, std::istream* content, LPCSTR szMime, LPCSTR szFileName, LPCSTR szFileClass, std::string* response )
+{
+	if( ( nullptr == szHost || 0 == szHost[0] ) )
+		return FALSE;
+	if( 0 == iPort )
+		iPort = 80;
+	if( nullptr == szURI )
+		szURI = "/";
+
+	Socket sock;
+	if( sock.create( SOCK_STREAM, FALSE, IPPROTO_TCP, FALSE, 0, 0 ) )
+		return FALSE;
+
+	SocketAddress dstAddr = SocketAddress( szHost, iPort );
+	if( !sock.connect( dstAddr ) )
+	{
+		std::list< std::istream* > chunks;
+		LPCSTR boundary = "---------------------------VIOSOWARPBLEND";
+		BOOL res = FALSE;
+		if( nullptr != content && !content->bad()/* && !file->eof() */ )
+		{
+			if( NULL == szMime || 0 == szMime[0] )
+				szMime = "application/octet-stream";
+
+			std::stringstream* chunk = new std::stringstream();
+			// send file
+			*chunk <<
+				"\015\012--" << boundary << "\015\012" <<
+				"Content-Disposition: form-data; name=\"" << szName << "\"";
+			if( nullptr != szFileName && 0 != szFileName[0] )
+				*chunk << "; filename=\"" << szFileName << "\"";
+			*chunk << "\015\012" <<
+				"Content-Type: " << szMime << "\015\012" <<
+				"\015\012";
+			chunks.push_back( chunk );
+			chunks.push_back( content );
+
+			if( NULL != szFileClass && 0 != szFileClass[0] )
+			{
+				std::stringstream* chunk = new std::stringstream();
+				*chunk <<
+					"\015\012--" << boundary << "\015\012" <<
+					"Content-Disposition: form-data; name=\"upload\"\015\012" <<
+					"Content-Type: text/xml\015\012" <<
+					"\015\012" <<
+					szFileClass;
+				chunks.push_back( chunk );
+			}
+		}
+		if( !chunks.empty() )
+		{
+			// add closing boundary
+			std::stringstream* chunk = new std::stringstream();
+			*chunk << "\015\012--" << boundary << "--";
+			chunks.push_back( chunk );
+
+			size_t l = 0;
+			try {
+				for( auto& chunk : chunks )
+				{
+					std::streampos oldGet = chunk->tellg();
+					chunk->seekg( 0, std::ios_base::end );
+					l += (size_t)chunk->tellg();
+					chunk->seekg( oldGet );
+				}
+			}
+			catch( ... ) { l = 0; }
+
+			// finally the actual header
+			chunk = new std::stringstream();
+			*chunk <<
+				"POST " << szURI << " HTTP/1.1\015\012" <<
+				"Host: " << szHost << ":" << iPort << "\015\012" <<
+				"User-Agent: VIOSO SPCalibrator\015\012" <<
+				"Content-Type: multipart/form-data; boundary=" << boundary << "\015\012";
+
+			// add content length, if it can be determined
+			if( 0 < l )
+				*chunk << "Content-Length: " << l << "\015\012";
+
+			*chunk << "\015\012"; // empty header line, to finish header
+
+			// this  goes first
+			chunks.push_front( chunk );
+		}
+		else
+		{
+			std::stringstream* chunk = new std::stringstream();
+			*chunk <<
+				"GET " << szURI << " HTTP/1.1\015\012" <<
+				"Host: " << szHost << ":" << iPort << "\015\012" <<
+				"User-Agent: VIOSO SPCalibrator\015\012" <<
+				"\015\012";
+			chunks.push_back( chunk );
+		}
+
+		int packetSize = 2048;
+		sock.getRecvBuffSize( packetSize );
+		char* sndBuf = new char[packetSize];
+		size_t nSent = 0;
+		for( auto& chunk : chunks )
+		{
+			while( chunk->read( sndBuf, packetSize ) )
+				nSent += sock.send( sndBuf, packetSize, INFINITETIMEOUT );
+			nSent += sock.send( sndBuf, (int)chunk->gcount(), INFINITETIMEOUT );
+		}
+		delete[] sndBuf;
+
+		char lBuf[8192];
+		int nRead = (__int64)sock.recv( lBuf, 8192, INFINITETIMEOUT );
+		if( nRead > 0 )
+		{
+			if( nullptr != response )
+				response->assign( lBuf, (size_t)nRead );
+			if( 400 > ParseStdResponseCode( lBuf, nRead ) )
+				res = TRUE;
+
+		}
+
+		for( auto& chunk : chunks )
+		{
+			if( content != chunk )
+				delete chunk;
+		}
+		sock.close();
+		return res;
+
+	}
+	return FALSE;
+}
+

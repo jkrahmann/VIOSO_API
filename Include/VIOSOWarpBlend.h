@@ -2,12 +2,15 @@
 // ## VIOSO Warp and Blend dll  ## //
 // ## for DirectX + OpenGL      ## //
 // ## author:  Juergen Krahmann ## //
-// ## version: 1.3.0            ## //
-// ## date:    2019/03/07       ## //
+// ## version: 1.5.0            ## //
+// ## date:    2020/05/20       ## //
 // ## Use with Calibrator >=4.3 ## //
 // ## Copyright VIOSO GmbH 2015 ## //
 // ############################### //
 
+#ifdef VIOSOWARPBLEND_EXPORTS
+	#pragma once
+#endif
 #include "VWBTypes.h"
 #include "VWBDef.h"
 
@@ -148,8 +151,10 @@ calibIndex=0
 
 	/** initializes a warper
 	* @param pWarper	a warper 
+	* @param extSet  	a warpBlendSet, loaded or created by host application
 	* @remarks In case of an OpenGL warper, the later used context needs to be active. There is no multi-threading on side of VIOSO API. */
 	VIOSOWARPBLEND_API( VWB_ERROR, VWB_Init, ( VWB_Warper* pWarper ));
+	VIOSOWARPBLEND_API( VWB_ERROR, VWB_InitExt, ( VWB_Warper* pWarper, VWB_WarpBlendSet* extSet ));
 
     /** set the new dynamic eye position and direction
 	* @param [IN]			pWarper	a valid warper

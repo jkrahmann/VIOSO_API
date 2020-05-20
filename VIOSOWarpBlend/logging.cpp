@@ -5,7 +5,7 @@
 #include <time.h>
 
 char g_logFilePath[MAX_PATH] = {0};
-VWB_int g_logLevel = 3;
+VWB_int g_logLevel = 2;
 
 int logStr( VWB_int level, char const* format, ... )
 {
@@ -13,7 +13,9 @@ int logStr( VWB_int level, char const* format, ... )
 	{
 		FILE* f = NULL;
 		errno_t err;
-		if (
+		if ( 
+			0 == g_logFilePath[0] 
+			|| 
 			's' == g_logFilePath[0] &&
 			't' == g_logFilePath[1] &&
 			'd' == g_logFilePath[2] &&
@@ -26,7 +28,7 @@ int logStr( VWB_int level, char const* format, ... )
 			f = stdout;
 			err = NOERROR;
 		}
-		if (
+		else if (
 			's' == g_logFilePath[0] &&
 			't' == g_logFilePath[1] &&
 			'd' == g_logFilePath[2] &&

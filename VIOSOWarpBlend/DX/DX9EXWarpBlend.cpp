@@ -73,9 +73,9 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 
 		LPDIRECT3DTEXTURE9 texTmpW = NULL;
 		LPDIRECT3DTEXTURE9 texTmpB = NULL;
-		if ( FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, 0 != ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_SYSTEMMEM, &texTmpW, NULL ) ) ||
+		if ( FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, 0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_SYSTEMMEM, &texTmpW, NULL ) ) ||
 			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A16B16G16R16, D3DPOOL_SYSTEMMEM, &texTmpB, NULL ) ) ||
-			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, 0 != ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_DEFAULT, &m_texBlend, NULL ) ) ||
+			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, 0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_DEFAULT, &m_texBlend, NULL ) ) ||
 			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A16B16G16R16, D3DPOOL_DEFAULT, &m_texWarp, NULL ) )  )
 		{
 			SAFERELEASE( texTmpW );
@@ -91,7 +91,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			logStr( 0, "ERROR: Failed to fill temp texture for blend.\n" );
 			throw VWB_ERROR_WARP;
 		}
-		if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D )
+		if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
 		{
 			memcpy( r.pBits, wb.pWarp, sizeof( *wb.pWarp ) * m_sizeMap.cx * m_sizeMap.cy );
 		}
@@ -289,10 +289,7 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
     res = m_device->SetRenderState(D3DRS_ZENABLE,D3DZB_TRUE);
 
     // Clear the current rendering target
-	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
-	{
-		res = m_device->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_STENCIL | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0 );
-	}
+	res = m_device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_STENCIL|D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0);
 
 	// Set the shaders
 	res = m_device->SetPixelShader( m_PixelShader );

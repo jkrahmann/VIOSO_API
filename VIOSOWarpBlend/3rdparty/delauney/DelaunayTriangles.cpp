@@ -13474,7 +13474,7 @@ struct behavior *b;
   triangleloop.orient = 0;
   triangleloop.tri = triangletraverse(m);
   while (triangleloop.tri != (triangle *) NULL) {
-    /* If the triangle is bad, enqueue it. */
+    /* If the triangle is bad, post it. */
     testtriangle(m, b, &triangleloop);
     triangleloop.tri = triangletraverse(m);
   }

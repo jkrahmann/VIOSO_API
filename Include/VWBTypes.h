@@ -1,5 +1,5 @@
-#ifndef __SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
-#define __SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
+#ifndef __VWB_SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
+#define __VWB_SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
 #include <stdint.h>
 #include <vector>
 
@@ -173,46 +173,50 @@ struct VWB_Warper
 
 	/// set to true to flip directX 11 texture v, defaults to false
 	bool		bFlipDXVs;
+
+	/// set to true to disable black level offset
+	bool        bDoNoBlack;
 };
 #pragma pack(pop)
 // ----------------------------------------------------------------------------------
 //                               constant declarations
 // ----------------------------------------------------------------------------------
 
-typedef enum ESPWarpFileHeaderFlag
+typedef enum FLAG_WARPFILE_HEADER
 {
-	FLAG_SP_WARPFILE_HEADER_NONE=0x0,										///<   no flags set
-	FLAG_SP_WARPFILE_HEADER_DATA_ZIP=0x1,									///<   zip compressed data
-	FLAG_SP_WARPFILE_HEADER_DISPLAY_SPLIT=0x2,								///<   data describes a splited display, reserved[0..5] contains splits position ( iRow, iCol, qRow, qCol, org. Display width, org. Display height)
-	FLAG_SP_WARPFILE_HEADER_CALIBRATION_BASE_TYP=0x4,						///<   the calibration typ is specified, reserved[6] @see ESPCalibrationBaseTyp for details
-	FLAG_SP_WARPFILE_HEADER_BORDER=0x8,										///<   border was set; the content is boxed by 1%
-	FLAG_SP_WARPFILE_HEADER_OFFSET=0x10,									///<   desktop monitor offset is valid in reserved[7] reserved[8]
-	FLAG_SP_WARPFILE_HEADER_BLACKLEVEL_CORR=0x20,							///<   the blacklevel correction values are set
-	FLAG_SP_WARPFILE_HEADER_3D=0x40,										///<   the warp definition contains 3D points instead of uv-mapping
-	FLAG_SP_WARPFILE_HEADER_DISPLAYID=0x80,									///<   the displayID of that screen is valid
-	FLAG_SP_WARPFILE_HEADER_BLENDV2=0x100,									///<   we are using VWB_BlendRecord2
-	FLAG_SP_WARPFILE_HEADER_BLENDV3=0x200,									///<   we are using VWB_BlendRecord3
-	FLAG_SP_WARPFILE_HEADER_ALL=											///<   all available flags
-	FLAG_SP_WARPFILE_HEADER_OFFSET |
-	FLAG_SP_WARPFILE_HEADER_BORDER |
-	FLAG_SP_WARPFILE_HEADER_DATA_ZIP | 
-	FLAG_SP_WARPFILE_HEADER_DISPLAY_SPLIT | 
-	FLAG_SP_WARPFILE_HEADER_CALIBRATION_BASE_TYP | 
-	FLAG_SP_WARPFILE_HEADER_BLACKLEVEL_CORR|
-	FLAG_SP_WARPFILE_HEADER_3D |
-	FLAG_SP_WARPFILE_HEADER_DISPLAYID |
-	FLAG_SP_WARPFILE_HEADER_BLENDV2 |
-	FLAG_SP_WARPFILE_HEADER_BLENDV3
-}ESPWarpFileHeaderFlag;
+	FLAG_WARPFILE_HEADER_NONE=0x0,										///<   no flags set
+	FLAG_WARPFILE_HEADER_DATA_ZIP=0x1,									///<   zip compressed data
+	FLAG_WARPFILE_HEADER_DISPLAY_SPLIT=0x2,								///<   data describes a splited display, reserved[0..5] contains splits position ( iRow, iCol, qRow, qCol, org. Display width, org. Display height)
+	FLAG_WARPFILE_HEADER_CALIBRATION_BASE_TYP=0x4,						///<   the calibration typ is specified, reserved[6] @see ESPCalibrationBaseTyp for details
+	FLAG_WARPFILE_HEADER_BORDER=0x8,										///<   border was set; the content is boxed by 1%
+	FLAG_WARPFILE_HEADER_OFFSET=0x10,									///<   desktop monitor offset is valid in reserved[7] reserved[8]
+	FLAG_WARPFILE_HEADER_BLACKLEVEL_CORR=0x20,							///<   the blacklevel correction values are set
+	FLAG_WARPFILE_HEADER_3D=0x40,										///<   the warp definition contains 3D points instead of uv-mapping
+	FLAG_WARPFILE_HEADER_DISPLAYID=0x80,									///<   the displayID of that screen is valid
+	FLAG_WARPFILE_HEADER_BLENDV2=0x100,									///<   we are using VWB_BlendRecord2
+	FLAG_WARPFILE_HEADER_BLENDV3=0x200,									///<   we are using VWB_BlendRecord3
+	FLAG_WARPFILE_HEADER_ALL=											///<   all available flags
+	FLAG_WARPFILE_HEADER_OFFSET |
+	FLAG_WARPFILE_HEADER_BORDER |
+	FLAG_WARPFILE_HEADER_DATA_ZIP | 
+	FLAG_WARPFILE_HEADER_DISPLAY_SPLIT | 
+	FLAG_WARPFILE_HEADER_CALIBRATION_BASE_TYP | 
+	FLAG_WARPFILE_HEADER_BLACKLEVEL_CORR|
+	FLAG_WARPFILE_HEADER_3D |
+	FLAG_WARPFILE_HEADER_DISPLAYID |
+	FLAG_WARPFILE_HEADER_BLENDV2 |
+	FLAG_WARPFILE_HEADER_BLENDV3
+}FLAG_WARPFILE_HEADER;
 
-typedef enum ESPCalibrationBaseTyp
+
+typedef enum VWB_TYPE_CALIBBASE
 {
-	TYP_SP_CALIBBASE_UNSPECIFIC=0,											///<   not specified
-	TYP_SP_CALIBBASE_SINGLE_DISPLAY,										///<   warp/blend information based on a single display calibration
-	TYP_SP_CALIBBASE_DISPLAY_COMPOUND,										///<   warp/blend information based on a display compound calibration
-	TYP_SP_CALIBBASE_SUPER_COMPOUND,										///<   warp/blend information based on a super compound calibration
-	TYP_SP_CALIBBASE_UNDEF													///<   undefined
-}ESPCalibrationBaseTyp;
+	TYP_CALIBBASE_UNSPECIFIC=0,											///<   not specified
+	TYP_CALIBBASE_SINGLE_DISPLAY,										///<   warp/blend information based on a single display calibration
+	TYP_CALIBBASE_DISPLAY_COMPOUND,										///<   warp/blend information based on a display compound calibration
+	TYP_CALIBBASE_SUPER_COMPOUND,										///<   warp/blend information based on a super compound calibration
+	TYP_CALIBBASE_UNDEF													///<   undefined
+}VWB_TYPE_CALIBBASE;
 
 #pragma pack( push, 4) // 32 bit aligned on all plattforms
 
@@ -589,4 +593,4 @@ typedef struct VWB_WarpBlendMesh // a triangle list mesh
 #pragma pack(pop)
 
 
-#endif//__SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
+#endif//__VWB_SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__

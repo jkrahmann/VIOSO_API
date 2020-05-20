@@ -115,7 +115,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			(UINT)m_sizeMap.cy,//UINT Height;
 			1,//UINT MipLevels;
 			1,//UINT ArraySize;
-			0 != ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32A32_FLOAT : DXGI_FORMAT_R16G16B16A16_UNORM,//DXGI_FORMAT Format;
+			0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32A32_FLOAT : DXGI_FORMAT_R16G16B16A16_UNORM,//DXGI_FORMAT Format;
 			{1,0},//DXGI_SAMPLE_DESC SampleDesc;
 			D3D10_USAGE_DEFAULT,//D3D11_USAGE Usage;
 			D3D10_BIND_SHADER_RESOURCE,//UINT BindFlags;
@@ -141,7 +141,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			sizeof( VWB_WarpRecord ) * m_sizeMap.cx,
 			sizeof( VWB_WarpRecord ) * m_sizeMap.cx * m_sizeMap.cy
 		};
-		if( 0 == ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) )
+		if( 0 == ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) )
 		{
 			UINT sz = 2 * m_sizeMap.cx;
 			dataWarp.SysMemPitch = sizeof( float ) * sz;
@@ -538,21 +538,17 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	m_device->PSSetSamplers( 1, 1, &m_SSClamp );
 	m_device->PSSetSamplers( 2, 1, &m_SSLin );
 
-	////////////// clear
-	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
+////////////// draw
+	if( pDSV )
 	{
-		if( pDSV )
-		{
-			m_device->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0f, 0 );
-			pDSV->Release();
-		}
-		if( pRTV )
-		{
-			m_device->ClearRenderTargetView( pRTV, _black );
-			pRTV->Release();
-		}
+		m_device->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0f, 0 );
+		pDSV->Release();
 	}
-	////////////// draw
+	if( pRTV )
+	{
+		m_device->ClearRenderTargetView( pRTV, _black );
+		pRTV->Release();
+	}
 	m_device->Draw( 6, 0 );
 	res = S_OK;
 

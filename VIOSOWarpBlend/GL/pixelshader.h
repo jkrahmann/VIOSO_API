@@ -170,7 +170,7 @@ GLchar const* s_warp_blend_fragment_shader_3D =
 "			FragColor.rgb*= blend.rgb;									\n"
 "		if( !bDoNoBlack )                      \n"
 "		{                                           \n"
-"			FragColor += black * blackBias;\n"// offset color to get min average black
+"			FragColor += 0.2 + black * blackBias;\n"// offset color to get min average black
 "			FragColor /= vec4(1,1,1,1) - black * blackBias;\n" // scale down to avoid clipping } vOut
 "		}                                           \n"
 "		FragColor.a = 1.0;               								\n"

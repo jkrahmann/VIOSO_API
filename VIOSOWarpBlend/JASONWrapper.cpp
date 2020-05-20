@@ -1,5 +1,5 @@
 #include "JASONWrapper.h"
-
+#include <sstream>
 
 
 JASONWrapper::JASONWrapper()
@@ -30,8 +30,8 @@ JASONWrapper::~JASONWrapper()
 {
 }
 
-std::string JASONWrapper::to_string()
+std::string JASONWrapper::to_string() const
 {
-	return std::string();
+	return params.to_string();
 }
 

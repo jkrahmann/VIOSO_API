@@ -9,7 +9,6 @@ typedef struct EyePoint
 
 #endif //ndef VWB_EYEPOINTPROVIDER_HPP
 
-
 #if defined( EYEPOINTPROVIDER_EXPORTS )
 #if defined(_MSC_VER)
 #define EYEPOINTPROVIDER_DEF( ret, name, args )\

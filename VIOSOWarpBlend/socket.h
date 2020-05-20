@@ -410,8 +410,6 @@ protected:
 	mutable std::mutex m_mtxRWOut;
 	timeval m_sto;
 
-	TCPConnection() {} // private
-	TCPConnection( TCPConnection const& other ) {}
 public:
 	TCPConnection( Socket const& other, SocketAddress const& peerAddress, TCPListener* pL, Server* pServer );
 	TCPConnection( SocketAddress connectTo );

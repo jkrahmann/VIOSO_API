@@ -19,8 +19,7 @@
 #include "../Include/VIOSOWarpBlend.h"
 #include "logging.h"
 #include "PathHelper.h"
-#include "LoadVWF.h"
-#include "LoadDAE.h"
+#include "VWF.h"
 #include "resource.h"
 #include "mmath.h"
 
@@ -62,6 +61,7 @@ protected:
 	VWB_MAT44f		m_mVP;					/// the view-projection matrix to be put into the shader
 	EyePoint		m_ep;					/// the current eye
 	VWB_VEC4f		m_viewSizes;			/// the calculated view size, x - left, y - top, z - right, w - bottom
+	VWB_VEC4f       m_blackBias;			/// the black bias value
 #ifdef WIN32
 	HMODULE			m_hmEPP;					/// the eye point provider module handle
 #else

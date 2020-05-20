@@ -117,7 +117,7 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			logStr( 2, "Window found. Viewport is %ux%u.\n", m_vp.Width, m_vp.Height );
 		}
 
-		if( FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, ( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_MANAGED, &m_texBlend, NULL ) ) ||
+		if( FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_MANAGED, &m_texBlend, NULL ) ) ||
 			FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A16B16G16R16, D3DPOOL_MANAGED, &m_texWarp, NULL ) ) )
 		{
 			logStr( 0, "ERROR: Failed to create lookup textures.\n" );
@@ -130,7 +130,7 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			logStr( 0, "ERROR: Failed to fill warp texture.\n" );
 			throw VWB_ERROR_WARP;
 		}
-		if( wb.header.flags & FLAG_SP_WARPFILE_HEADER_3D )
+		if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
 		{
 			memcpy( r.pBits, wb.pWarp, sizeof( *wb.pWarp ) * m_sizeMap.cx * m_sizeMap.cy );
 		}
@@ -308,10 +308,7 @@ VWB_ERROR DX9WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	res = m_device->SetRenderState( D3DRS_ZENABLE, D3DZB_TRUE );
 
 	// Clear the current rendering target
-	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
-	{
-		res = m_device->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_STENCIL | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0 );
-	}
+	res = m_device->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_STENCIL | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0 );
 
 	// Set the shaders
 	res = m_device->SetPixelShader( m_PixelShader );
