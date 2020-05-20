@@ -1,5 +1,5 @@
 VIOSO Warp and Blend API
-(c) 2017-2019 VIOSO GmbH
+(c) 2017-20120 VIOSO GmbH
 Jürgen Krahmann
 
 This library is meant to use in image generators, to do warping and blending. It takes a .vwf export and a texture buffer 
