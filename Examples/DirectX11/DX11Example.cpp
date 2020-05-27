@@ -50,7 +50,7 @@ struct SimpleVertex
 
 //d3d11.lib;d3dcompiler.lib;d3dx11d.lib;d3dx9d.lib;dxerr.lib;dxguid.lib;winmm.lib;comctl32.lib
 
-//#define USE_VIOSO
+#define USE_VIOSO
 #ifdef USE_VIOSO
 #define VIOSOWARPBLEND_DYNAMIC_DEFINE_IMPLEMENT
 #include "../../Include/VIOSOWarpBlend.h"

@@ -64,7 +64,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "{                                               \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );      \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );   \n"
-"	float4 black = tex2D( samBlack, vIn.tex );   \n"
+"	float4 black = tex2D( samBlack, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -84,8 +84,9 @@ static char s_pixelShaderDX2a[] ="\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                  \n"
@@ -96,8 +97,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "{                                               \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );      \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );   \n"
-"	float4 black = tex2D( samBlack, vIn.tex );   \n"
-"	blend.a = 1;								 \n"
+"	float4 black = tex2D( samBlack, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = float4( 0,0,0,1);              \n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )                            \n"
@@ -116,8 +116,9 @@ static char s_pixelShaderDX2a[] ="\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
@@ -136,7 +137,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "	vIn.tex*= offsScale.zw;                      \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );     \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );  \n"
-"	float4 black = tex2D( samBlack, vIn.tex );   \n"
+"	float4 black = tex2D( samBlack, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -156,8 +157,9 @@ static char s_pixelShaderDX2a[] ="\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                 \n"
@@ -168,8 +170,7 @@ static char s_pixelShaderDX2a[] ="\n"
 "{                                               \n"
 "	float4 tex = tex2D( samWarp, vIn.tex );     \n"
 "	float4 blend = tex2D( samBlend, vIn.tex );  \n"
-"	float4 black = tex2D( samBlack, vIn.tex );   \n"
-"	blend.a = 1;  \n"
+"	float4 black = tex2D( samBlack, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )                            \n"
@@ -188,8 +189,9 @@ static char s_pixelShaderDX2a[] ="\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
@@ -284,7 +286,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -304,8 +306,9 @@ static char s_pixelShaderDX4[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                 \n"
@@ -316,8 +319,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
-"	blend.a = 1;  \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )                            \n"
@@ -336,8 +338,9 @@ static char s_pixelShaderDX4[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
@@ -354,7 +357,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )\n"
@@ -374,8 +377,9 @@ static char s_pixelShaderDX4[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                 \n"
@@ -386,8 +390,7 @@ static char s_pixelShaderDX4[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
-"	blend.a = 1;  \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
 "	if( 0.1 < blend.a )                            \n"
@@ -406,8 +409,9 @@ static char s_pixelShaderDX4[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
@@ -503,10 +507,10 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
-"	if( 0.1 < tex.z )\n"
+"	if( 0.1 < blend.a )\n"
 "	{\n"
 "		if( bBorder.x > 0.5 )                      \n"
 "		{                                           \n"
@@ -524,8 +528,9 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}\n"
 //"   float4 vOut = texWarp.Sample( samWarp, vIn.tex );\n"
@@ -537,11 +542,10 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
-"	blend.a = 1;  \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
-"	if( 0.1 < tex.w )                            \n"
+"	if( 0.1 < blend.a )                            \n"
 "	{                                           \n"
 "		tex/= tex.w;                            \n"
 "		tex = mul( tex, matView );              \n"
@@ -556,8 +560,9 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"
@@ -574,10 +579,10 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = 0;\n"
 "	float4 vCur = 0;\n"
-"	if( 0.1 < tex.z )\n"
+"	if( 0.1 < blend.a )\n"
 "	{\n"
 "		if( bBorder.x > 0.5 )                      \n"
 "		{                                           \n"
@@ -595,8 +600,9 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}\n"
 "	vOut.a = 1;                                 \n"
@@ -607,11 +613,10 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "{                                               \n"
 "	float4 tex = texWarp.Sample( samWarp, vIn.tex );     \n"
 "	float4 blend = texBlend.Sample( samLin, vIn.tex );  \n"
-"	float4 black = texBlack( samLin, vIn.tex );   \n"
-"	blend.a = 1;  \n"
+"	float4 black = texBlack.Sample( samLin, vIn.tex ) * blackBias.x;   \n"
 "	float4 vOut = float4( 0,0,0,1);             \n"
 "	float4 vCur = 0;\n"
-"	if( 0.1 < tex.w && ( 0 < blend.r || 0 < blend.g || 0 < blend.b ) )                            \n"
+"	if( 0.1 < blend.a )                            \n"
 "	{                                           \n"
 "		tex/= tex.w;                            \n"
 "		tex = mul( tex, matView );              \n"
@@ -626,8 +631,9 @@ static char s_pixelShaderDX4_vFlip[] = "\n"
 "			vOut.rgb*= blend.rgb;			        \n"
 "		if( bBorder.z > 0.5 )                      \n"
 "		{                                           \n"
-"			vOut += black * blackBias;\n"// offset color to get min average black
-"			vOut /= 1 - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			vOut += blackBias.y * black;\n"// offset color to get min average black
+"			vOut *= float4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			vOut = max( vOut, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "	}                                           \n"
 "	vOut.a = 1;                                \n"

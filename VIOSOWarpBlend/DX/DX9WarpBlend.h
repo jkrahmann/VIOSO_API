@@ -12,7 +12,8 @@ protected:
     LPDIRECT3DDEVICE9       m_device;           // the d3d device
     LPDIRECT3DTEXTURE9      m_texWarp;          // the warp lookup texture, in case of 3D it contains the real world 3D coordinates of the screen
     LPDIRECT3DTEXTURE9      m_texBlend;         // the blend lookup texture
-	LPDIRECT3DTEXTURE9		m_texBB;			// backbuffer copy texture
+    LPDIRECT3DTEXTURE9      m_texBlack;         // the blacklevel lookup texture
+    LPDIRECT3DTEXTURE9		m_texBB;			// backbuffer copy texture
 	LPDIRECT3DSURFACE9		m_srfBB;			// backbuffer copy surface
 	LPDIRECT3DTEXTURE9		m_texWarpCalc;		// the caclulated warp after model inscription
 	LPDIRECT3DTEXTURE9		m_texCur;			// the mouse cursor texture
@@ -20,8 +21,8 @@ protected:
 
     LPDIRECT3DPIXELSHADER9  m_PixelShader;
     LPDIRECT3DVERTEXBUFFER9 m_VertexBuffer;		// the 
-    LPDIRECT3DVERTEXBUFFER9 m_VertexBufferModel; // the vertex buffer of a model
-    LPDIRECT3DINDEXBUFFER9 m_IndexBufferModel; // the index buffer to that vertex buffer of a model
+    //LPDIRECT3DVERTEXBUFFER9 m_VertexBufferModel; // the vertex buffer of a model
+    //LPDIRECT3DINDEXBUFFER9 m_IndexBufferModel; // the index buffer to that vertex buffer of a model
 
 public:
 	///< the constructor

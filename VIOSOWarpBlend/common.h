@@ -61,7 +61,11 @@ protected:
 	VWB_MAT44f		m_mVP;					/// the view-projection matrix to be put into the shader
 	EyePoint		m_ep;					/// the current eye
 	VWB_VEC4f		m_viewSizes;			/// the calculated view size, x - left, y - top, z - right, w - bottom
-	VWB_VEC4f       m_blackBias;			/// the black bias value
+	VWB_VEC4f       m_blackBias;			/// the black bias values
+											/// [0] is black offset scale,
+											/// [1] is black cut; range 0..1, set to 0 to clip values darker as blacklevel offset, 1 will lift all values above black level, default is 1
+											/// [2] is uplift-downscale; range 0..1, set to 0 to clip whites that are shifted out of range, set to 1 to scale values to stay in range, default is 1
+											/// [3] is not used, set to 0
 #ifdef WIN32
 	HMODULE			m_hmEPP;					/// the eye point provider module handle
 #else

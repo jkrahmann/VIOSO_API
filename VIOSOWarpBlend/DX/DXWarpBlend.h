@@ -26,6 +26,18 @@ public:
 		TexT Tex;
 	} SimpleVertex;
 
+	typedef  __declspec( align( 4 ) ) struct ConstantBuffer
+	{
+		FLOAT matView[16];
+		FLOAT border[4];
+		FLOAT params[4];
+		FLOAT offsScale[4];
+		FLOAT offsScaleCur[4];
+		FLOAT blackBias[4];
+	} ConstantBuffer;
+
+	const FLOAT _black[4] = { 0,0,0,1 };
+
 protected:
 	char					m_modelPath[MAX_PATH];  // the path to a successful loaded model
 public:

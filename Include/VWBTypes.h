@@ -405,16 +405,16 @@ public:
 	VWB_float                           black[4];								///<   black point of that projector; set to { 0.0f, 0.0f, 0.0f, 1.0f }
 	VWB_float                           splitRowIndex;							///<   [ 0] => row index
 	VWB_float                           splitColumnIndex;						///<   [ 1] => column index
-	VWB_float							splitRows;								///<   [ 2] => row quantum
-	VWB_float							splitColumns;							///<   [ 3] => column quantum
+	VWB_float							splitRows;								///<   [ 2] => number of rows
+	VWB_float							splitColumns;							///<   [ 3] => number of columns
 	VWB_float							splitTotalWidth;						///<   [ 4] => original display width
 	VWB_float							splitTotalHeight;						///<   [ 5] => original display height
 	VWB_float							typeCalib;								///<   [ 6] => type to define the calibration type the information based on
 	VWB_float							offsetX;								///<   [ 7] => original desktop display offset x
 	VWB_float							offsetY;								///<   [ 8] => original desktop display offset y
-	VWB_float							blackOffset;							///<   [ 9] => blacklevel correction factor
-	VWB_float							blackGain;								///<   [10] => blacklevel dark value maintain factor
-	VWB_float							blackCut;								///<   [11] => blacklevel bright value maintain factor
+	VWB_float							blackScale;								///<   [ 9] => blacklevel correction texture scale factor
+	VWB_float							blackDark;								///<   [10] => blacklevel dark value maintain factor; 
+	VWB_float							blackBright;							///<   [11] => blacklevel bright value maintain factor
 	VWB_float							compoundID;								///<   [12] => ///<   identifier for a compound display, static cast to int, set if greater than 0, all screend/displays with same compound id should use same content space alas source rect
 	VWB_float							vReserved[3];							///<	reserved for future use
 	char                                name[256];								///<   optional, human readable name for that mapping

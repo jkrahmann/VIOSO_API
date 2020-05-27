@@ -122,7 +122,7 @@ GLchar const* s_warp_blend_fragment_shader =
 "{																		\n"
 "	vec4 tex = _tex2D( samWarp,texcoord.st );						\n"
 "	vec4 blend = _tex2D( samBlend, texcoord.st );					\n"
-"	vec4 black = _tex2D( samBlack, texcoord.st );					\n"
+"	vec4 black = _tex2D( samBlack, texcoord.st ) * blackBias.x;		\n"
 "	if( 0.1 < blend.a )													\n"
 "	{																	\n"
 "		tex.y = 1.0 - tex.y;											\n"
@@ -139,8 +139,9 @@ GLchar const* s_warp_blend_fragment_shader =
 "			FragColor.rgb*= blend.rgb;									\n"
 "		if( !bDoNoBlack )                      \n"
 "		{                                           \n"
-"			FragColor += black * blackBias;\n"// offset color to get min average black
-"			FragColor /= vec4(1,1,1,1) - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			FragColor += blackBias.y * black;\n"// offset color to get min average black
+"			FragColor *= vec4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			FragColor = max( FragColor, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "		FragColor.a = 1.0;												\n"
 "	}																	\n"
@@ -155,7 +156,7 @@ GLchar const* s_warp_blend_fragment_shader_3D =
 "{                                               						\n"
 "	vec4 tex = _tex2D( samWarp, texcoord.st );     					\n"
 "	vec4 blend = _tex2D( samBlend, texcoord.st );  					\n"
-"	vec4 black = _tex2D( samBlack, texcoord.st );					\n"
+"	vec4 black = _tex2D( samBlack, texcoord.st ) * blackBias.x;			\n"
 "	if( 0.1 < blend.a )                            						\n"
 "	{                                           						\n"
 "		tex/= blend.a;                            						\n"
@@ -170,8 +171,9 @@ GLchar const* s_warp_blend_fragment_shader_3D =
 "			FragColor.rgb*= blend.rgb;									\n"
 "		if( !bDoNoBlack )                      \n"
 "		{                                           \n"
-"			FragColor += 0.2 + black * blackBias;\n"// offset color to get min average black
-"			FragColor /= vec4(1,1,1,1) - black * blackBias;\n" // scale down to avoid clipping } vOut
+"			FragColor += blackBias.y * black;\n"// offset color to get min average black
+"			FragColor *= vec4(1,1,1,1) - blackBias.z * black;\n" // scale down to avoid clipping } vOut
+"			FragColor = max( FragColor, black );\n" // do lower clamp to stay above common black, upper is done anyways
 "		}                                           \n"
 "		FragColor.a = 1.0;               								\n"
 "	}                                           						\n"

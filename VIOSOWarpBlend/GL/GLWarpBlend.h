@@ -58,7 +58,6 @@ public:
 	virtual VWB_ERROR SetViewProjection( VWB_float const* pView, VWB_float const* pProj );
 
 	virtual VWB_ERROR Render( VWB_param inputTexture, VWB_uint stateMask );
-	virtual VWB_ERROR RenderX( VWB_param inputTexture, VWB_uint stateMask );
 
 
 protected:

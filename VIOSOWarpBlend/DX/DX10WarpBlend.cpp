@@ -1,7 +1,7 @@
 #include "DX10WarpBlend.h"
 #include "pixelshader.h"
 
-#define XTDEBUG
+//#define XTDEBUG
 
 #ifdef XTDEBUG
 #include "../3rdparty/d3dX/Include/D3DX10.h"
@@ -10,33 +10,26 @@
 
 //#pragma comment( lib, "d3d11.lib" )
 
-typedef struct ConstantBuffer
-{
-	FLOAT matView[16];
-	FLOAT border[4];
-	FLOAT params[4];
-	FLOAT offsScale[4];
-} ConstantBuffer;
-
 const FLOAT _black[4] = {0,0,0,1};
 
 DX10WarpBlend::DX10WarpBlend( ID3D10Device* pDevice )
-: DXWarpBlend(),
-  m_device( pDevice ),
-  m_VertexShader(NULL),
-  m_VertexBuffer(NULL),
-  m_VertexBufferModel(NULL),
-  m_IndexBufferModel(NULL),
-  m_PixelShader(NULL),
-  m_SSClamp(NULL),
-  m_SSLin(NULL),
-  m_ConstantBuffer(NULL),
-  m_texBlend(NULL),
-  m_texWarp(NULL),
-  m_texBB(NULL),
-  m_texWarpCalc(NULL),
-  m_RasterState(NULL),
-  m_Layout(NULL)
+:	DXWarpBlend(),
+	m_device( pDevice ),
+	m_VertexShader( NULL ),
+	m_VertexBuffer( NULL ),
+	//m_VertexBufferModel(NULL),
+	//m_IndexBufferModel(NULL),
+	m_PixelShader( NULL ),
+	m_SSClamp( NULL ),
+	m_SSLin( NULL ),
+	m_ConstantBuffer( NULL ),
+	m_texBlend( NULL ),
+	m_texBlack( NULL ),
+	m_texWarp( NULL ),
+	m_texBB( NULL ),
+	m_texWarpCalc( NULL ),
+	m_RasterState( NULL ),
+	m_Layout( NULL )
 {
 	if( NULL == m_device )
 		throw( VWB_ERROR_PARAMETER );
@@ -55,11 +48,12 @@ DX10WarpBlend::~DX10WarpBlend(void)
 	SAFERELEASE( m_texBB );
 	SAFERELEASE( m_texWarp ); 
 	SAFERELEASE( m_texBlend );
+	SAFERELEASE( m_texBlack );
 	SAFERELEASE( m_PixelShader );
 	SAFERELEASE( m_VertexShader );
 	SAFERELEASE( m_VertexBuffer );
-	SAFERELEASE( m_VertexBufferModel );
-	SAFERELEASE( m_IndexBufferModel );
+	//SAFERELEASE( m_VertexBufferModel );
+	//SAFERELEASE( m_IndexBufferModel );
 	SAFERELEASE( m_SSLin );
 	SAFERELEASE( m_SSClamp );
 	SAFERELEASE( m_ConstantBuffer );
@@ -115,7 +109,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			(UINT)m_sizeMap.cy,//UINT Height;
 			1,//UINT MipLevels;
 			1,//UINT ArraySize;
-			0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32A32_FLOAT : DXGI_FORMAT_R16G16B16A16_UNORM,//DXGI_FORMAT Format;
+			0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32_FLOAT : DXGI_FORMAT_R16G16_UNORM,//DXGI_FORMAT Format;
 			{1,0},//DXGI_SAMPLE_DESC SampleDesc;
 			D3D10_USAGE_DEFAULT,//D3D11_USAGE Usage;
 			D3D10_BIND_SHADER_RESOURCE,//UINT BindFlags;
@@ -135,23 +129,47 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			0,//UINT MiscFlags;
 		};
 
-		D3D10_SUBRESOURCE_DATA dataWarp =
-		{
-			wb.pWarp,
-			sizeof( VWB_WarpRecord ) * m_sizeMap.cx,
-			sizeof( VWB_WarpRecord ) * m_sizeMap.cx * m_sizeMap.cy
+		D3D10_TEXTURE2D_DESC descTexBl = {
+			(UINT)m_sizeMap.cx,//UINT Width;
+			(UINT)m_sizeMap.cy,//UINT Height;
+			1,//UINT MipLevels;
+			1,//UINT ArraySize;
+			DXGI_FORMAT_R8G8B8A8_UNORM,//DXGI_FORMAT Format;
+			{1,0},//DXGI_SAMPLE_DESC SampleDesc;
+			D3D10_USAGE_DEFAULT,//D3D11_USAGE Usage;
+			D3D10_BIND_SHADER_RESOURCE,//UINT BindFlags;
+			0,//UINT CPUAccessFlags;
+			0,//UINT MiscFlags;
 		};
-		if( 0 == ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) )
+
+		D3D10_SUBRESOURCE_DATA dataWarp;
+		if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
 		{
-			UINT sz = 2 * m_sizeMap.cx;
+			UINT sz = 3 * m_sizeMap.cx;
 			dataWarp.SysMemPitch = sizeof( float ) * sz;
 			sz *= m_sizeMap.cy;
 			dataWarp.SysMemSlicePitch = sizeof( float ) * sz;
 			dataWarp.pSysMem = new float[sz];
-			for( float* d = (float*)dataWarp.pSysMem, *s = (float*)wb.pWarp, *sE = ( (float*)wb.pWarp ) + m_sizeMap.cx * m_sizeMap.cy; s != sE; d += 2, s += 4 )
+			float* d = (float*)dataWarp.pSysMem;
+			for( const VWB_WarpRecord *s = wb.pWarp, *sE = wb.pWarp + m_sizeMap.cx * m_sizeMap.cy; s != sE; d += 3, s++ )
 			{
-				d[0] = s[0];
-				d[1] = s[1];
+				d[0] = s->x;
+				d[1] = s->y;
+				d[2] = s->z;
+			}
+		}
+		else
+		{
+			UINT sz = 2 * m_sizeMap.cx;
+			dataWarp.SysMemPitch = sizeof( unsigned short ) * sz;
+			sz *= m_sizeMap.cy;
+			dataWarp.SysMemSlicePitch = sizeof( unsigned short ) * sz;
+			dataWarp.pSysMem = new unsigned short[sz];
+			unsigned short* d = (unsigned short*)dataWarp.pSysMem;
+			for( const VWB_WarpRecord* s = wb.pWarp, *sE = wb.pWarp + (ptrdiff_t)m_sizeMap.cx * (ptrdiff_t)m_sizeMap.cy; s != sE; d += 2, s++ )
+			{
+				d[0] = (unsigned short)( 65535.0f * MIN( 1.0f, MAX( 0.0f, s->x ) ) );
+				d[1] = (unsigned short)( 65535.0f * MIN( 1.0f, MAX( 0.0f, s->y ) ) );
 			}
 		}
 
@@ -161,27 +179,55 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			sizeof( VWB_BlendRecord2 ) * m_sizeMap.cx * m_sizeMap.cy
 		};
 
-		D3D10_SHADER_RESOURCE_VIEW_DESC descSRV;
-		descSRV.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		descSRV.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-		descSRV.Texture2D.MipLevels = 1;
-		descSRV.Texture2D.MostDetailedMip = 0;
-		ID3D10Texture2D* pTexWarp = NULL, *pTexBlend = NULL;
+		D3D10_SUBRESOURCE_DATA dataBlack = {
+			wb.pBlack,
+			sizeof( VWB_BlendRecord ) * m_sizeMap.cx,
+			sizeof( VWB_BlendRecord ) * m_sizeMap.cx * m_sizeMap.cy
+		};
+
+		D3D10_SHADER_RESOURCE_VIEW_DESC descSRVW;
+		descSRVW.Format = ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32_FLOAT : DXGI_FORMAT_R16G16_UNORM;
+		descSRVW.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+		descSRVW.Texture2D.MipLevels = 1;
+		descSRVW.Texture2D.MostDetailedMip = 0;
+		D3D10_SHADER_RESOURCE_VIEW_DESC descSRVB = descSRVW;
+		descSRVB.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+		descSRVB.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+		D3D10_SHADER_RESOURCE_VIEW_DESC descSRVBl = descSRVW;
+		descSRVBl.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		descSRVBl.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+		ID3D10Texture2D* pTexWarp = NULL, *pTexBlend = NULL, *pTexBlack = NULL;
 		if(	FAILED( m_device->CreateTexture2D( &descTexW, &dataWarp, &pTexWarp ) ) ||
 			FAILED( m_device->CreateTexture2D( &descTexB, &dataBlend, &pTexBlend ) ) ||
-			FAILED( m_device->CreateShaderResourceView( pTexWarp, &descSRV, &m_texWarp ) ) ||
-			FAILED( m_device->CreateShaderResourceView( pTexBlend, &descSRV, &m_texBlend ) ) )
+			FAILED( m_device->CreateTexture2D( &descTexB, dataBlack.pSysMem ? &dataBlack : nullptr, &pTexBlack ) ) ||
+			FAILED( m_device->CreateShaderResourceView( pTexWarp, &descSRVW, &m_texWarp ) ) ||
+			FAILED( m_device->CreateShaderResourceView( pTexBlend, &descSRVB, &m_texBlend ) ) ||
+			FAILED( m_device->CreateShaderResourceView( pTexBlack, &descSRVBl, &m_texBlack ) ) 
+			)
 		{
 			logStr( 0, "ERROR: Failed to create lookup textures.\n" );
-			if( wb.pWarp != dataWarp.pSysMem )
-				delete[]( float* ) dataWarp.pSysMem;
-
+			SAFERELEASE( pTexWarp );
+			SAFERELEASE( pTexBlend );
+			SAFERELEASE( pTexBlack );
+			if( dataWarp.pSysMem )
+			{
+				if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
+					delete[]( float* ) dataWarp.pSysMem;
+				else
+					delete[]( unsigned short* ) dataWarp.pSysMem;
+			}
 			throw VWB_ERROR_SHADER;
 		}
 		SAFERELEASE( pTexWarp );
 		SAFERELEASE( pTexBlend );
-		if( wb.pWarp != dataWarp.pSysMem )
-			delete[]( float* ) dataWarp.pSysMem;
+		SAFERELEASE( pTexBlack );
+		if( dataWarp.pSysMem )
+		{
+			if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
+				delete[]( float* ) dataWarp.pSysMem;
+			else
+				delete[]( unsigned short* ) dataWarp.pSysMem;
+		}
 
 		ID3DBlob* pVSBlob = NULL;
 		ID3DBlob* pErrBlob = NULL;
@@ -470,8 +516,8 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	ID3D10VertexShader* pOldVS = NULL;
 	ID3D10Buffer* pOldCB = NULL;
 	ID3D10PixelShader* pOldPS = NULL;
-	ID3D10ShaderResourceView* ppOldSRV[3] = {0};
-	ID3D10SamplerState* ppOldSS[3] = {0};
+	ID3D10ShaderResourceView* ppOldSRV[5] = {0};
+	ID3D10SamplerState* ppOldSS[5] = {0};
 
 	if( VWB_STATEMASK_VERTEX_BUFFER & stateMask )
 		m_device->IAGetVertexBuffers( 0, 1, &pOldVtx, &oldStride, &oldOffset );
@@ -487,9 +533,9 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	if( VWB_STATEMASK_PIXEL_SHADER & stateMask )
 		m_device->PSGetShader( &pOldPS );
 	if( VWB_STATEMASK_SHADER_RESOURCE & stateMask )
-		m_device->PSGetShaderResources( 0, 3, ppOldSRV );
+		m_device->PSGetShaderResources( 0, 5, ppOldSRV );
 	if( VWB_STATEMASK_SAMPLER & stateMask )
-		m_device->PSGetSamplers( 0, 3, ppOldSS );
+		m_device->PSGetSamplers( 0, 5, ppOldSS );
 	if( VWB_STATEMASK_CONSTANT_BUFFER & stateMask )
 		m_device->PSGetConstantBuffers( 0, 1, &pOldCB );
 
@@ -501,6 +547,7 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	memcpy( cb.matView, m_mVP.Transposed(), sizeof( cb.matView ) );
 	cb.border[0] = m_bBorder;
 	cb.border[1] = bDoNotBlend ? 0.0f : 1.0f;
+	cb.border[2] = bDoNoBlack ? 0.0f : 1.0f;
 	cb.params[0] = (FLOAT)m_sizeIn.cx;
 	cb.params[1] = (FLOAT)m_sizeIn.cy;
 	cb.params[2] = 1.0f/(FLOAT)m_sizeIn.cx;
@@ -519,6 +566,17 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 		cb.offsScale[2] = 1.0f;
 		cb.offsScale[3] = 1.0f;
 	}
+	cb.blackBias[0] = m_blackBias.x;
+	cb.blackBias[1] = m_blackBias.y;
+	cb.blackBias[2] = m_blackBias.z;
+	cb.blackBias[3] = 0;
+
+	ID3D10ShaderResourceView* texCur = NULL;
+	cb.offsScaleCur[0] = -2.0f;
+	cb.offsScaleCur[1] = -2.0f;
+	cb.offsScaleCur[2] = 1.0f;
+	cb.offsScaleCur[3] = 1.0f;
+
 	m_device->UpdateSubresource( m_ConstantBuffer, 0, NULL, &cb, 0, 0 );
 
 	m_device->IASetVertexBuffers( 0, 1, &m_VertexBuffer, &stride, &offset );
@@ -531,23 +589,24 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	m_device->RSSetState( m_RasterState );
 	m_device->PSSetShader( m_PixelShader );
 	m_device->PSSetConstantBuffers( 0, 1, &m_ConstantBuffer );
-	m_device->PSSetShaderResources( 0, 1, &m_texBB );
-	m_device->PSSetShaderResources( 1, 1, &m_texWarp );
-	m_device->PSSetShaderResources( 2, 1, &m_texBlend );
-	m_device->PSSetSamplers( 0, 1, &m_SSLin );
-	m_device->PSSetSamplers( 1, 1, &m_SSClamp );
-	m_device->PSSetSamplers( 2, 1, &m_SSLin );
+	ID3D10ShaderResourceView* ppRes[] = { m_texBB ,m_texWarp, m_texBlend, nullptr, m_texBlack };
+	ID3D10SamplerState* ppSam[] = { m_SSLin ,m_SSClamp, m_SSLin, m_SSLin, m_SSLin };
+	m_device->PSSetShaderResources( 0, ARRAYSIZE(ppRes), ppRes );
+	m_device->PSSetSamplers( 0, 5, ppSam );
 
 ////////////// draw
-	if( pDSV )
+	if( VWB_STATEMASK_CLEARBACKBUFFER )
 	{
-		m_device->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0f, 0 );
-		pDSV->Release();
-	}
-	if( pRTV )
-	{
-		m_device->ClearRenderTargetView( pRTV, _black );
-		pRTV->Release();
+		if( pDSV )
+		{
+			m_device->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0f, 0 );
+			pDSV->Release();
+		}
+		if( pRTV )
+		{
+			m_device->ClearRenderTargetView( pRTV, _black );
+			pRTV->Release();
+		}
 	}
 	m_device->Draw( 6, 0 );
 	res = S_OK;
@@ -558,18 +617,22 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 
 	if( VWB_STATEMASK_SAMPLER & stateMask )
 	{
-		m_device->PSSetSamplers( 0, 3, ppOldSS );
+		m_device->PSSetSamplers( 0, 5, ppOldSS );
 		SAFERELEASE( ppOldSS[0] );
 		SAFERELEASE( ppOldSS[1] );
 		SAFERELEASE( ppOldSS[2] );
+		SAFERELEASE( ppOldSS[3] );
+		SAFERELEASE( ppOldSS[4] );
 	}
 
 	if( VWB_STATEMASK_SHADER_RESOURCE & stateMask )
 	{
-		m_device->PSSetShaderResources( 0, 3, ppOldSRV );
+		m_device->PSSetShaderResources( 0, 5, ppOldSRV );
 		SAFERELEASE( ppOldSRV[0] );
 		SAFERELEASE( ppOldSRV[1] );
 		SAFERELEASE( ppOldSRV[2] );
+		SAFERELEASE( ppOldSRV[3] );
+		SAFERELEASE( ppOldSRV[4] );
 	}
 
 	if( VWB_STATEMASK_PIXEL_SHADER & stateMask )

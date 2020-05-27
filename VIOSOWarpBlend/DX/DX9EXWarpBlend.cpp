@@ -11,8 +11,9 @@ DX9EXWarpBlend::DX9EXWarpBlend( LPDIRECT3DDEVICE9EX pDevice )
 	m_device( pDevice ),
 	m_PixelShader(NULL),
 	m_VertexBuffer(NULL),
-	m_VertexBufferModel(NULL),
-	m_texBlend(NULL),
+//	m_VertexBufferModel(NULL),
+	m_texBlend( NULL ),
+	m_texBlack( NULL ),
 	m_texWarp(NULL),
 	m_texBB(NULL),
 	m_srfBB(NULL),
@@ -37,6 +38,7 @@ DX9EXWarpBlend::~DX9EXWarpBlend(void)
 	SAFERELEASE( m_srfBB );
 	SAFERELEASE( m_texWarp ); 
 	SAFERELEASE( m_texBlend );
+	SAFERELEASE( m_texBlack );
 	SAFERELEASE( m_PixelShader );
 	SAFERELEASE( m_VertexBuffer );
 	SAFERELEASE( m_device );
@@ -73,18 +75,25 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 
 		LPDIRECT3DTEXTURE9 texTmpW = NULL;
 		LPDIRECT3DTEXTURE9 texTmpB = NULL;
+		LPDIRECT3DTEXTURE9 texTmpBl = NULL;
 		if ( FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, 0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_SYSTEMMEM, &texTmpW, NULL ) ) ||
 			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A16B16G16R16, D3DPOOL_SYSTEMMEM, &texTmpB, NULL ) ) ||
-			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, 0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_DEFAULT, &m_texBlend, NULL ) ) ||
-			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A16B16G16R16, D3DPOOL_DEFAULT, &m_texWarp, NULL ) )  )
+			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A8B8G8R8, D3DPOOL_SYSTEMMEM, &texTmpBl, NULL ) ) ||
+			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, 0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? D3DFMT_A32B32G32R32F : D3DFMT_G32R32F, D3DPOOL_DEFAULT, &m_texWarp, NULL ) ) ||
+			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A16B16G16R16, D3DPOOL_DEFAULT, &m_texBlend, NULL ) )  ||
+			 FAILED( m_device->CreateTexture( m_sizeMap.cx, m_sizeMap.cy, 1, 0, D3DFMT_A8B8G8R8, D3DPOOL_DEFAULT, &m_texBlack, NULL ) )
+			 )
 		{
 			SAFERELEASE( texTmpW );
 			SAFERELEASE( texTmpB );
+			SAFERELEASE( texTmpBl );
 			logStr( 0, "ERROR: Failed to create lookup textures.\n" );
 			throw VWB_ERROR_SHADER;
 		}
 
-        D3DLOCKED_RECT r;
+		const size_t sz = size_t( m_sizeMap.cx ) * m_sizeMap.cy;
+		D3DLOCKED_RECT r;
+
         if( FAILED(texTmpW->LockRect( 0, &r, NULL, 0 ) ) )
 		{
 			SAFERELEASE(texTmpW);
@@ -93,14 +102,15 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		}
 		if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
 		{
-			memcpy( r.pBits, wb.pWarp, sizeof( *wb.pWarp ) * m_sizeMap.cx * m_sizeMap.cy );
+			memcpy( r.pBits, wb.pWarp, sizeof( *wb.pWarp ) * sz );
 		}
 		else
 		{
-			for( float* d = (float*)r.pBits, *s = (float*)wb.pWarp, *sE = ( (float*)wb.pWarp ) + m_sizeMap.cx * m_sizeMap.cy; s != sE; d += 2, s += 4 )
+			float* d = (float*)r.pBits;
+			for( VWB_WarpRecord* s = wb.pWarp, *sE = wb.pWarp + sz; s != sE; d += 2, s++ )
 			{
-				d[0] = s[0];
-				d[1] = s[1];
+				d[0] = s->x;
+				d[1] = s->y;
 			}
 		}
 		texTmpW->UnlockRect(0);
@@ -117,7 +127,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			logStr( 0, "ERROR: Failed to fill temp texture for blend.\n" );
 			throw VWB_ERROR_BLEND;
 		}
-		memcpy( r.pBits, wb.pBlend2, sizeof( *wb.pBlend2 ) * m_sizeMap.cx * m_sizeMap.cy );
+		memcpy( r.pBits, wb.pBlend2, sizeof( *wb.pBlend2 ) * sz );
 		texTmpB->UnlockRect(0);
 		if(FAILED(m_device->UpdateTexture(texTmpB, m_texBlend)))
 		{
@@ -126,9 +136,27 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 				throw VWB_ERROR_WARP;
 		}
 
+		if( wb.pBlack )
+		{
+			if( FAILED( texTmpBl->LockRect( 0, &r, NULL, 0 ) ) )
+			{
+				SAFERELEASE( texTmpBl );
+				logStr( 0, "ERROR: Failed to fill temp texture for black level correction.\n" );
+				throw VWB_ERROR_BLEND;
+			}
+			memcpy( r.pBits, wb.pBlack, sizeof( *wb.pBlack ) * sz );
+			texTmpBl->UnlockRect( 0 );
+			if( FAILED( m_device->UpdateTexture( texTmpBl, m_texBlack ) ) )
+			{
+				SAFERELEASE( texTmpBl );
+				logStr( 0, "ERROR: Failed to update warp texture.\n" );
+				throw VWB_ERROR_WARP;
+			}
+		}
 		SAFERELEASE( texTmpW );
 		SAFERELEASE( texTmpB );
-		logStr(2, "INFO: Warp and blend lookup maps created.\n");
+		SAFERELEASE( texTmpBl );
+		logStr(2, "INFO: Warp, blend and black level lookup maps created.\n");
 
 
         std::string pixelShader = "PS"; // or "TST"
@@ -187,7 +215,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 
 VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 {
-	logStr( 3, "Render begin." );
+	logStr( 4, "Render begin." );
     HRESULT res;
 	if( VWB_STATEMASK_STANDARD == stateMask )
 		stateMask = VWB_STATEMASK_DEFAULT;
@@ -221,7 +249,7 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 			SAFERELEASE( srfBB );
 			if( FAILED( res ) )
 				return VWB_ERROR_GENERIC;
-			logStr( 3, "Backbuffer copied." );
+			logStr( 4, "Backbuffer copied." );
 		}
 		else
 			return VWB_ERROR_GENERIC;
@@ -246,7 +274,7 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	IDirect3DVertexShader9* pOldVS = NULL;
 	IDirect3DPixelShader9* pOldPS = NULL;
 	float oldFVals[24] = {0};
-	IDirect3DBaseTexture9* ppOldTex[4] = {NULL};
+	IDirect3DBaseTexture9* ppOldTex[5] = {NULL};
 	D3DMATRIX mOldView,mOldWorld,mOldProj;
 
     // Record rendering state
@@ -276,10 +304,8 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	}
 	if( VWB_STATEMASK_SHADER_RESOURCE & stateMask )
 	{
-		m_device->GetTexture( 0, &ppOldTex[0] );
-		m_device->GetTexture( 1, &ppOldTex[1] );
-		m_device->GetTexture( 2, &ppOldTex[2] );
-		m_device->GetTexture( 3, &ppOldTex[3] );
+		for( DWORD i = 0; i != ARRAYSIZE( ppOldTex ); i++ )
+			m_device->GetTexture( i, &ppOldTex[i] );
 	}
 
 	// Set rendering state
@@ -289,7 +315,8 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
     res = m_device->SetRenderState(D3DRS_ZENABLE,D3DZB_TRUE);
 
     // Clear the current rendering target
-	res = m_device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_STENCIL|D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0);
+	if( stateMask & VWB_STATEMASK_CLEARBACKBUFFER )
+		res = m_device->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_STENCIL|D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB( 0, 0, 0 ), 0, 0);
 
 	// Set the shaders
 	res = m_device->SetPixelShader( m_PixelShader );
@@ -300,7 +327,7 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
     res = m_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_GAUSSIANQUAD); // GAUSSIANQUAD is a little better as it preserves fine structures, while sampling in the source texture
     res = m_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_GAUSSIANQUAD);
     SetTexture(1, m_texWarp);
-    SetTexture(2, m_texBlend);
+	SetTexture( 2, m_texBlend );
 
 	if (m_bDynamicEye)
     {
@@ -311,7 +338,8 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	float vals[4] = {
 		m_bBorder ? 1.0f : 0.0f,
 		bDoNotBlend ? 0.0f : 1.0f,
-		0, 0 };
+		bDoNoBlack ? 0.0f : 1.0f,
+		0 };
     m_device->SetPixelShaderConstantF( 4, vals, 1 );
 
 	if( bBicubic )
@@ -401,7 +429,7 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 		}
 		else
 		{
-			logStr( 3, "no cursor set." );
+			logStr( 4, "no cursor set." );
 		}
 
 		D3DDEVICE_CREATION_PARAMETERS dcp = { 0 };
@@ -449,11 +477,18 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	}
 	else
 	{
+		if( nullptr == m_texCur )
+		{
+			m_device->CreateTexture( 1, 1, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &m_texCur, NULL );
+		}
 		float vals[4] = { -2.0f, -2.0f, 1.0f, 1.0f };
 		m_device->SetPixelShaderConstantF( 7, vals, 1 );
 	}
 	SetTexture( 3, m_texCur );
-	
+	SetTexture( 4, m_texBlack );
+
+	m_device->SetPixelShaderConstantF( 8, m_blackBias, 1 );
+
 	// Set ortho projection filling the viewport
     D3DXMATRIX lOrthoMatrix;
     D3DXMatrixOrthoOffCenterLH( &lOrthoMatrix, 0.0, static_cast<float>(m_sizeMap.cx), 0.0, static_cast<float>(m_sizeMap.cy), 0.0, 1.0 );
@@ -483,20 +518,13 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 
 	if( VWB_STATEMASK_SHADER_RESOURCE & stateMask )
 	{
-		if( ppOldTex[0] )
+		for( DWORD i = 0; i != ARRAYSIZE( ppOldTex ); i++ )
 		{
-			m_device->SetTexture( 0, ppOldTex[0] );
-			ppOldTex[0]->Release();
-		}
-		if( ppOldTex[1] )
-		{
-			m_device->SetTexture( 1, ppOldTex[1] );
-			ppOldTex[1]->Release();
-		}
-		if( ppOldTex[2] )
-		{
-			m_device->SetTexture( 2, ppOldTex[2] );
-			ppOldTex[2]->Release();
+			if( ppOldTex[i] )
+			{
+				m_device->SetTexture( i, ppOldTex[i] );
+				ppOldTex[i]->Release();
+			}
 		}
 	}
 
@@ -524,7 +552,7 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 			pOldVtx->Release();
 		}
 
-	logStr( 3, "Render end." );
+	logStr( 4, "Render end." );
 	return VWB_ERROR_NONE;
 }
 

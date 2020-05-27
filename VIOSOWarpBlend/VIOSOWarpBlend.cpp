@@ -803,10 +803,10 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 
 	m_sizeMap.cx = wbs[calibIndex]->header.width;
 	m_sizeMap.cy = wbs[calibIndex]->header.height;
-	m_blackBias.x = wbs[calibIndex]->header.black[0];
-	m_blackBias.y = wbs[calibIndex]->header.black[1];
-	m_blackBias.z = wbs[calibIndex]->header.black[2];
-	m_blackBias.w = wbs[calibIndex]->header.black[3];
+	m_blackBias.x = wbs[calibIndex]->header.blackScale;
+	m_blackBias.y = wbs[calibIndex]->header.blackDark;
+	m_blackBias.z = wbs[calibIndex]->header.blackDark * wbs[calibIndex]->header.blackBright;
+	m_blackBias.w = 0;
 
 	VWB_MAT44f B( trans );
 	m_mBaseI = B.Inverted();

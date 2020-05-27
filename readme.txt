@@ -42,6 +42,9 @@ Call VWB_getViewProj to obtain view and projection matrices relative to some eye
 Call VWB_render to warp scene to screen. There is no multi-threading inside VIOSOWarpBlend module, make sure to use same thread or make your GL-context current before calling VWB_render.
 
 You need VIOSO Calibrator to export a warp map as Vioso Warp File.
+OR you can download mapings here:
+https://vioso.sharepoint.com/:f:/s/intern/EnmNHs_Y7r1Lno7zCl2y1CsB8vIpWHsQdV9ZMK2OQNjXOQ?e=jRzHTk
+
 This API can use all mappings. In case you export 3D, you have to specify view parameter.
 The eye point correction algorithm works implicitly. Imagine a rectangular "window" placed virtually near next to the screen.
 It must be situated the way that from every possible (dynamic) eye point the whole projection area of the regarded projector

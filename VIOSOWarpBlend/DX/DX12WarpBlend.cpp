@@ -3,15 +3,6 @@
 
 //#pragma comment( lib, "d3d11.lib" )
 
-typedef struct ConstantBuffer
-{
-	FLOAT matView[16];
-	FLOAT border[4];
-	FLOAT params[4];
-} ConstantBuffer;
-
-const FLOAT _black[4] = {0,0,0,1};
-
 DX12WarpBlend::DX12WarpBlend( ID3D12CommandQueue* pCQ )
 : DXWarpBlend()
 , m_cq( NULL )
