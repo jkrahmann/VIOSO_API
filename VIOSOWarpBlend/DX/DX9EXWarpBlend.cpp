@@ -2,7 +2,6 @@
 #include "pixelshader.h"
 
 #pragma comment( lib, "d3d9.lib" )
-#pragma comment( lib, "d3dx9.lib" )
 
 //const DWORD DXSCREENVERTEX::FVF = D3DFVF_XYZ | D3DFVF_TEX1; // already initialized in D3D9WarpBlend.cpp !
 
@@ -489,9 +488,24 @@ VWB_ERROR DX9EXWarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 
 	m_device->SetPixelShaderConstantF( 8, m_blackBias, 1 );
 
+	// remove dependency of d3d9x.lib
+	//D3DXMatrixOrthoOffCenterLH( &lOrthoMatrix, 0.0, static_cast<float>( m_sizeMap.cx ), 0.0, static_cast<float>( m_sizeMap.cy ), 0.0, 1.0 );
+	//D3DXMATRIX* D3DXMatrixOrthoOffCenterLH(
+	//	_Inout_ D3DXMATRIX* pOut,
+	//	_In_    FLOAT      l,
+	//	_In_    FLOAT      r,
+	//	_In_    FLOAT      b,
+	//	_In_    FLOAT      t,
+	//	_In_    FLOAT      zn,
+	//	_In_    FLOAT      zf
+	//);
 	// Set ortho projection filling the viewport
-    D3DXMATRIX lOrthoMatrix;
-    D3DXMatrixOrthoOffCenterLH( &lOrthoMatrix, 0.0, static_cast<float>(m_sizeMap.cx), 0.0, static_cast<float>(m_sizeMap.cy), 0.0, 1.0 );
+	D3DXMATRIX lOrthoMatrix = {
+		 2.0f / m_sizeMap.cx,	 0.0f,					 0.0f,				 0.0f,
+		 0.0f,					 2.0f / m_sizeMap.cy,	 0.0f,				 0.0f,
+		 0.0f,					 0.0f,					 1.0f,				 0.0f,
+		-1.0f,					-1.0f,					 0.0f,				 1.0f
+	};
     res = m_device->SetTransform( D3DTS_PROJECTION, &lOrthoMatrix );
 
     // Set Identity view and world matrix

@@ -2,7 +2,6 @@
 
 #include "DXWarpBlend.h"
 #include <d3d9.h>
-#include "../3rdparty/d3dX/Include/d3dx9.h"
 
 class DX9WarpBlend : public DXWarpBlend
 {
