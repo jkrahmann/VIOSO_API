@@ -49,7 +49,7 @@ namespace VIOSOWarpBlend
         };
 
         [DllImport("VIOSOWarpBlend.dll", EntryPoint = "VWB_CreateA", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int VWB_Create([MarshalAs(UnmanagedType.IUnknown)]Object dx, [MarshalAs(UnmanagedType.LPStr)]String szCnfigFile, [MarshalAs(UnmanagedType.LPStr)]String szChannelName, out IntPtr warper, Int32 logLevel, [MarshalAs(UnmanagedType.LPStr)]String szLogFile);
+        public static extern int VWB_Create(IntPtr dxDevice, [MarshalAs(UnmanagedType.LPStr)]String szCnfigFile, [MarshalAs(UnmanagedType.LPStr)]String szChannelName, out IntPtr warper, Int32 logLevel, [MarshalAs(UnmanagedType.LPStr)]String szLogFile);
         [DllImport("VIOSOWarpBlend.dll", EntryPoint = "VWB_Init", CallingConvention = CallingConvention.Cdecl)]
         public static extern int VWB_Init(IntPtr warper);
         [DllImport("VIOSOWarpBlend.dll", EntryPoint = "VWB_Destroy", CallingConvention = CallingConvention.Cdecl)]
