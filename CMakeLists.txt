@@ -7,18 +7,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4302")
 set(DEFAULT_FLAGS -std=c++11 -Wall -Werror -Wno-unused-result -Wno-unknown-pragmas)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-add_subdirectory(Examples)
+#add_subdirectory(Examples)
 add_subdirectory(EyePointProvider)
 add_subdirectory(TrackerSim)
 
-add_dependencies(Example_DirectX11 ${PROJECT_NAME})
-add_dependencies(Example_DirectX12 ${PROJECT_NAME})
-add_dependencies(Example_DirectX9 ${PROJECT_NAME})
-add_dependencies(Example_DirectX9_render ${PROJECT_NAME})
-add_dependencies(Example_DirectX9Ex ${PROJECT_NAME})
-add_dependencies(Example_OpenGL_4 ${PROJECT_NAME})
+
 add_dependencies(EyePointProvider ${PROJECT_NAME})
-add_dependencies(TrackerSim ${PROJECT_NAME})
+#add_dependencies(TrackerSim ${PROJECT_NAME})
 
 find_package(OpenGL REQUIRED)
 include_directories(${OpenGL_INCLUDE_DIRS})

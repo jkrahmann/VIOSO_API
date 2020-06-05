@@ -8,3 +8,11 @@ add_subdirectory(DirectX9)
 add_subdirectory(DirectX9_render)
 add_subdirectory(DirectX9Ex)
 add_subdirectory(OpenGL_4)
+
+
+add_dependencies(Example_DirectX11 VIOSOWarpBlend)
+add_dependencies(Example_DirectX12 VIOSOWarpBlend)
+add_dependencies(Example_DirectX9 VIOSOWarpBlend)
+add_dependencies(Example_DirectX9_render VIOSOWarpBlend)
+add_dependencies(Example_DirectX9Ex VIOSOWarpBlend)
+add_dependencies(Example_OpenGL_4 VIOSOWarpBlend)
