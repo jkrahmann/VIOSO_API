@@ -205,11 +205,13 @@
       <ShowIncludes>false</ShowIncludes>
       <MinimalRebuild />
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug Unity|Win32'">
@@ -224,11 +226,13 @@
       <MinimalRebuild>
       </MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -241,11 +245,13 @@
       <AdditionalIncludeDirectories>$(SolutionDir)addon</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MinimalRebuild />
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug Unity|x64'">
@@ -259,11 +265,13 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MinimalRebuild>
       </MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -280,14 +288,16 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <MinimalRebuild />
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x86</AdditionalLibraryDirectories>
       <ImportLibrary>$(OutDir)..\lib\$(TargetName).lib</ImportLibrary>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release Unity|Win32'">
@@ -305,14 +315,16 @@
       <MinimalRebuild>
       </MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x86</AdditionalLibraryDirectories>
       <ImportLibrary>$(OutDir)..\lib\$(TargetName).lib</ImportLibrary>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseTitan|Win32'">
@@ -329,13 +341,15 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <MinimalRebuild />
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -350,14 +364,16 @@
       <AdditionalIncludeDirectories>$(SolutionDir)addon</AdditionalIncludeDirectories>
       <MinimalRebuild />
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x64</AdditionalLibraryDirectories>
       <ImportLibrary>$(OutDir)..\lib\$(TargetName).lib</ImportLibrary>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release Unity|x64'">
@@ -373,14 +389,16 @@
       <MinimalRebuild>
       </MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x64</AdditionalLibraryDirectories>
       <ImportLibrary>$(OutDir)..\lib\$(TargetName).lib</ImportLibrary>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseTitan|x64'">
@@ -395,13 +413,15 @@
       <AdditionalIncludeDirectories>$(SolutionDir)addon</AdditionalIncludeDirectories>
       <MinimalRebuild />
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)addon\lib;%(AdditionalLibraryDirectories);$(DXSDK_DIR)lib\$(PlatformTarget);C:\Users\user\source\repos\VIOSO_API\VIOSOWarpBlend\3rdparty\d3dX\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxerr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -1,0 +1,25 @@
+﻿################################################################################
+# Diese .gitignore-Datei wurde von Microsoft(R) Visual Studio automatisch erstellt.
+################################################################################
+
+/.vs
+/Debug
+/EyePointProvider/x64/Debug
+/out
+/TrackerSim/x64/Debug
+/VIOSOWarpBlend/x64/Debug
+/EyePointProvider/EyePointProvider.vcxproj.user
+/TrackerSim/TrackerSim.vcxproj.user
+/VIOSOWarpBlend/VIOSOWarpBlend.vcxproj.user
+/Examples/DirectX11/x64/Debug
+/Examples/DirectX12/obj/x64/Debug
+/Examples/OpenGL_4/x64/Debug
+/Examples/OpenGL_4/OpenGL_3.2.vcxproj.user
+/Examples/DirectX9_render/x64/Debug
+/Examples/OpenGL_4/VIOSOWarpBlend.log
+/Examples/DirectX9Ex/Debug/DirectX9.9D0BEE81.tlog
+/Examples/DirectX9Ex/Debug
+/Examples/DirectX9/Debug
+/Examples/DirectX11/DX11Example.vcxproj.user
+/Examples/DirectX12/D3D12HelloTexture.vcxproj.user
+/Examples/DirectX9Ex/DirectX9ExExample.vcxproj.user
