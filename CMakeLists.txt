@@ -8,12 +8,14 @@ set(DEFAULT_FLAGS -std=c++11 -Wall -Werror -Wno-unused-result -Wno-unknown-pragm
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 #add_subdirectory(Examples)
+
 add_subdirectory(EyePointProvider)
-add_subdirectory(TrackerSim)
-
-
 add_dependencies(EyePointProvider ${PROJECT_NAME})
-add_dependencies(TrackerSim ${PROJECT_NAME})
+
+if (NOT DEFINED SKIP_TRACKERSIM)
+	add_subdirectory(TrackerSim)
+	add_dependencies(TrackerSim ${PROJECT_NAME})
+endif()
 
 find_package(OpenGL REQUIRED)
 include_directories(${OpenGL_INCLUDE_DIRS})
