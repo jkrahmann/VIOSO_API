@@ -40,11 +40,11 @@ DX9Renderer::DX9Renderer( HWND hWnd )
 			SUCCEEDED( m_d3d9->CreateDeviceEx( D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &p, NULL, &m_device  ) ) )
 		{
             // Create our 'render target'
-            //if (FAILED(::D3DXCreateTextureFromFile( m_device, _T("earth.jpg"), &m_frameBuf )))
-            if (FAILED(::D3DXCreateTextureFromFile( m_device, _T("..\\Res\\earth.jpg"), &m_frameBuf )))
-            {
+            //if (FAILED(::D3DXCreateTextureFromFile( m_device, _T("..\\Res\\earth.jpg"), &m_frameBuf )))
+			if (FAILED(::D3DXCreateTextureFromFile(m_device, _T("earth.jpg"), &m_frameBuf)))
+			{
 				throw -6;
-		}
+			}
         }
 		else
 			throw -3;

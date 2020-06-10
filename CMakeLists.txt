@@ -13,7 +13,7 @@ add_subdirectory(TrackerSim)
 
 
 add_dependencies(EyePointProvider ${PROJECT_NAME})
-#add_dependencies(TrackerSim ${PROJECT_NAME})
+add_dependencies(TrackerSim ${PROJECT_NAME})
 
 find_package(OpenGL REQUIRED)
 include_directories(${OpenGL_INCLUDE_DIRS})

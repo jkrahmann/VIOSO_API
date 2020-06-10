@@ -23,3 +23,9 @@
 /Examples/DirectX11/DX11Example.vcxproj.user
 /Examples/DirectX12/D3D12HelloTexture.vcxproj.user
 /Examples/DirectX9Ex/DirectX9ExExample.vcxproj.user
+/data/vioso2d.vwf
+/data/vioso3D.vwf
+/EyePointProvider/Debug
+/TrackerSim/Debug/TrackerSim.tlog
+/TrackerSim/Debug
+/Examples/DirectX9/DirectX9Example.vcxproj.user
