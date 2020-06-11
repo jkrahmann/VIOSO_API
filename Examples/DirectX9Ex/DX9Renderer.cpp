@@ -12,7 +12,12 @@
 #include "DX9Renderer.h"
 
 #pragma comment(lib, "d3d9.lib" )
-#pragma comment(lib, "d3dx9.lib" )
+#ifdef _M_X64
+#pragma comment(lib, "../../VIOSOWarpBlend/3rdparty/d3dX/lib/x64/d3dx9.lib" )
+#else
+#pragma comment(lib, "../../VIOSOWarpBlend/3rdparty/d3dX/lib/x86/d3dx9.lib" )
+#endif
+
 
 #define SRELEASE( ptr ) if( ptr ) { ptr->Release(); ptr = NULL; }
 DX9Renderer::DX9Renderer( HWND hWnd )

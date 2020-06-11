@@ -375,6 +375,65 @@ VWB_ERROR SaveBMP_RGBA( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map
 	return VWB_ERROR_NONE;
 }
 
+VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_WarpRecord const* map, std::ostream& os )
+{
+	if( nullptr == map || os.bad() )
+		return VWB_ERROR_PARAMETER;
+
+	// bmp stores pixels in packed rows, the size of each row is rounded up to a multiple of 4 bytes by padding
+	// pitchBM = number of bytes necessary to store one row of pixels = rounded up to a multiple of 4
+	const VWB_uint pitchBM = ( ( h.width * 24 + 31 ) / 32 ) * 4;
+	const VWB_uint paddingBM = pitchBM - h.width * 3;
+	BITMAPINFOHEADER bmih = {
+		sizeof( BITMAPINFOHEADER ),		// number of bytes required by the structure
+		h.width,
+		-h.height,						// biHeight is negative, the bitmap is a top-down DIB with the origin at the upper left corner.
+		1,								// biPlanes, Specifies the number of planes for the target device. This value must be set to 1.
+		24,								// biBitCount, Specifies the number of bits per pixel (bpp).
+		0,								// biCompression
+		0,								// biSizeImage, Specifies the size, in bytes, of the image. This can be set to 0 for uncompressed RGB bitmaps.
+		5512,							// biXPelsPerMeter, horizontal resolution, in pixels per meter, 
+		5512,							// biYPelsPerMeter, horizontal resolution, in pixels per meter, 
+		0,								// biClrUsed, number of color indices in the color table 
+		0								// biClrImportant, number of color indices that are considered important for displaying the bitmap. If this value is zero, all colors are important.
+	};
+	BITMAPFILEHEADER bmfh = {
+		'MB',
+		sizeof( BITMAPFILEHEADER ) + sizeof( bmih ) + bmih.biSizeImage,
+		0, 0,
+		sizeof( BITMAPFILEHEADER ) + sizeof( bmih )
+	};
+	os.write( (const char*)&bmfh, sizeof( bmfh ) );
+	os.write( (const char*)&bmih, sizeof( bmih ) );
+	// iterate through the whole image line by line. 
+	for( VWB_WarpRecord const* p = map, *pE = map + (ptrdiff_t)h.width * (ptrdiff_t)h.height; p != pE;)
+	{
+		// write one line, write until we are at the end
+		for( VWB_WarpRecord const* pLE = p + h.width; p != pLE; p++ )
+		{
+			VWB_byte c[3] = { (VWB_byte)( 255.0f * p->z ), (VWB_byte)( 255.0f * p->y ), (VWB_byte)( 255.0f * p->x ) };
+			os.write( (const char*)c, 3 );
+		}
+		os.write( "\0\0\0", paddingBM );
+	}
+	return VWB_ERROR_NONE;
+}
+
+VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_WarpRecord const* map, char const* path )
+{
+	char pp[MAX_PATH];
+	strcpy_s( pp, path );
+	MkPath( pp, MAX_PATH, ".bmp" );
+	std::ofstream os( pp, std::ios_base::binary );
+	if( os.bad() )
+	{
+		logStr( 0, "ERROR: SaveVWF: Error opening \"%s\"\n", pp );
+		return VWB_ERROR_VWF_FILE_NOT_FOUND;
+	}
+
+	return SaveBMP( h, map, os );
+}
+
 VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, std::ostream& os )
 {
 	if( nullptr == map || os.bad() )

@@ -6,8 +6,11 @@ bool DeleteVWF( VWB_WarpBlendSet& set );
 bool DeleteVWF( VWB_WarpBlendHeaderSet& set );
 VWB_ERROR LoadVWF( VWB_WarpBlendSet& set, char const* path );
 VWB_ERROR SaveBMP_RGBA( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, std::ostream& os );
-VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, std::ostream& os );
 VWB_ERROR SaveBMP_RGBA( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, char const* path );
+///< @remark use SaveBMP   VWB_WarpRecord only for debug reasons, it will save 8 bit RGB only!
+VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_WarpRecord const* map, std::ostream& os ); 
+VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_WarpRecord const* map, char const* path );
+VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, std::ostream& os );
 VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, char const* path );
 VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord2 const* map, char const* path );
 VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord2 const* map, std::ostream& os );
