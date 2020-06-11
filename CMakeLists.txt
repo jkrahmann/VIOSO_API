@@ -7,12 +7,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4302")
 set(DEFAULT_FLAGS -std=c++11 -Wall -Werror -Wno-unused-result -Wno-unknown-pragmas)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-#add_subdirectory(Examples)
+if (NOT DEFINED VIOSO_API_SKIP_EXAMPLES)
+	add_subdirectory(Examples)
+endif()
 
 add_subdirectory(EyePointProvider)
 add_dependencies(EyePointProvider ${PROJECT_NAME})
 
-if (NOT DEFINED SKIP_TRACKERSIM)
+if (NOT DEFINED VIOSO_API_SKIP_TRACKERSIM)
 	add_subdirectory(TrackerSim)
 	add_dependencies(TrackerSim ${PROJECT_NAME})
 endif()
@@ -50,3 +52,21 @@ include_directories(
 target_link_libraries (${PROJECT_NAME} 
 	${THIRD_PARTY}/d3dX/lib/${LIB_ARCH_PATH}/dxerr.lib
 	)
+
+#uncompress zipped data files
+if(NOT EXISTS ${CMAKE_SOURCE_DIR}/data/vioso3D.vwf)
+	message("extracting vioso3D.zip")
+	execute_process(
+		COMMAND ${CMAKE_COMMAND} -E tar xzf vioso3D.zip
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/data
+	)
+endif()
+
+#uncompress zipped data files
+if(NOT EXISTS ${CMAKE_SOURCE_DIR}/data/vioso2d.vwf)
+	message("extracting vioso2d.zip")
+	execute_process(
+		COMMAND ${CMAKE_COMMAND} -E tar xzf vioso2d.zip
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/data
+	)
+endif()

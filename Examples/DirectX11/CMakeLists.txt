@@ -29,15 +29,15 @@ endif(WIN32)
 include_directories(${THIRD_PARTY}/d3dX/include/)
 #target_link_libraries (${PROJECT_NAME} ${THIRD_PARTY}/d3dX/lib/${LIB_ARCH_PATH}/d3dx9.lib)
 #target_link_libraries (${PROJECT_NAME} ${THIRD_PARTY}/d3dX/lib/${LIB_ARCH_PATH}/d3dx10.lib)
-target_link_libraries (${PROJECT_NAME} ${THIRD_PARTY}/d3dX/lib/${LIB_ARCH_PATH}/dxerr.lib)
+target_link_libraries (${PROJECT_NAME}
+	${THIRD_PARTY}/d3dX/lib/${LIB_ARCH_PATH}/dxerr.lib
+	VIOSOWarpBlend
+	)
 
-# always copy the binaries to the destination binary folders of the rojects that need them. This way any in this project changes are immediately reflected in the projects that depend on it
-#set(Stage3D_3RD_PARTY_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party)
-#add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD 
-#	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../../Debug/VIOSOWarpBlendGL.ini ${CMAKE_CURRENT_BINARY_DIR}
-#	COMMAND ${CMAKE_COMMAND} -E copy ${Stage3D_3RD_PARTY_LIB_DIR}/GLEW/bin/${LIB_ARCH_PATH}/glew32.dll $<TARGET_FILE_DIR:${PROJECT_NAME}>
-#	COMMAND ${CMAKE_COMMAND} -E copy ${Stage3D_3RD_PARTY_LIB_DIR}/Assimp/bin/${LIB_ARCH_PATH}/assimp.dll $<TARGET_FILE_DIR:${PROJECT_NAME}>
-#	COMMAND ${CMAKE_COMMAND} -E copy ${Stage3D_3RD_PARTY_LIB_DIR}/Freeimage/bin/${LIB_ARCH_PATH}/FreeImage.dll $<TARGET_FILE_DIR:${PROJECT_NAME}>
-#	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/test.png $<TARGET_FILE_DIR:${PROJECT_NAME}>
-#)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD 
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/debug/VIOSOWarpBlend.ini ${CMAKE_CURRENT_BINARY_DIR}
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/data/vioso2d.vwf $<TARGET_FILE_DIR:${PROJECT_NAME}>
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/data/vioso3D.vwf $<TARGET_FILE_DIR:${PROJECT_NAME}>
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/VIOSOWarpBlend.dll ${CMAKE_CURRENT_BINARY_DIR}/.
+)
 
