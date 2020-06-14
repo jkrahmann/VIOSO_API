@@ -248,7 +248,7 @@ bool GetIniString(char const* szSection, char const* szKey, char* szDefault, cha
 VWB_int GetIniInt(char const* szSection, char const* szKey, VWB_int iDefault, char const* szConfigFile)
 {
 	char s[32678] = { 0 };
-	if (GetIniString(szSection, szKey, "", s, 32678, szConfigFile))
+	if (GetIniString(szSection, szKey, (char*)"", s, 32678, szConfigFile))
 		return atoi(s);
 	return iDefault;
 }
@@ -256,7 +256,7 @@ VWB_int GetIniInt(char const* szSection, char const* szKey, VWB_int iDefault, ch
 VWB_float GetIniFloat(char const* szSection, char const* szKey, VWB_float fDefault, char const* szConfigFile)
 {
 	char s[32678] = { 0 };
-	if (GetIniString(szSection, szKey, "", s, 32678, szConfigFile))
+	if (GetIniString(szSection, szKey, (char*)"", s, 32678, szConfigFile))
 		return (VWB_float)atof(s);
 	return fDefault;
 }
@@ -268,7 +268,7 @@ VWB_float* GetIniMat(char const* szSection, char const* szKey, int dimX, int dim
 	if (0 == dimX || 0 == dimY)
 		return NULL;
 	char s[32678] = { 0 };
-	GetIniString(szSection, szKey, "", s, 32678, szConfigFile);
+	GetIniString(szSection, szKey, (char*)"", s, 32678, szConfigFile);
 	char* pS = s;
 	int o = 0;
 	int oE = dimX * dimY;

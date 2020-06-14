@@ -1,5 +1,9 @@
 #if defined(VIOSOWARPBLEND_EXPORTS)
+#ifdef WIN32
 	#define VIOSOWARPBLEND_API(ret,name,args) extern "C" __declspec(dllexport) ret name args
+#else
+	#define VIOSOWARPBLEND_API(ret,name,args) extern "C" ret name args
+#endif
 #elif defined(VIOSOWARPBLEND_DYNAMIC_DEFINE)
 
 	#ifdef WIN32

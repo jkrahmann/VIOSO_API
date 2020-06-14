@@ -1,9 +1,17 @@
 #ifndef VWB_PLATFORM_INCLUDE_HPP
 #define VWB_PLATFORM_INCLUDE_HPP
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h> /* superset of previous */
+
 #define _CRT_SECURE_NO_WARNINGS
 #define __Q(x) #x
 #define _Q(x) __Q(x)
+
+#ifndef WIN32 // or something like that...
+#define __stdcall
+#endif
 
 #if defined( _MSC_VER )
 #if _MSC_VER <= 1600
@@ -16,7 +24,11 @@
 #define _inline_ __forceinline
 #else
 #define _inline_ inline
+#ifdef __linux__
+#define VWB_inet_ntop_cast in_addr*
+#else
 #define VWB_inet_ntop_cast IN_ADDR*
+#endif
 #endif //defined( _MSC_VER )
 
 #ifdef WIN32

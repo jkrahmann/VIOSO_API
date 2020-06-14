@@ -1,10 +1,12 @@
 #include "Platform.h"
 
 #include "LoadDAE.h"
-#include "3rdparty\tinyxml2\tinyxml2.h"
+#include <3rdparty/tinyxml2/tinyxml2.h>
 #include "logging.h"
 #include "PathHelper.h"
 #include "Platform.h"
+
+#include <cstring>
 
 using namespace tinyxml2;
 
@@ -178,10 +180,17 @@ VWB_ERROR loadDAE( Scene& scene, char const* path )
 	do
 	{
 		pP2 = strchr( pP, ',' );
+#ifdef WIN32
 		if( pP2 )
 			strncpy_s( pp, pP, pP2 - pP );
 		else
 			strcpy_s( pp, MAX_PATH, pP );
+#else
+		if( pP2 )
+			strncpy( pp, pP, pP2 - pP );
+		else
+			strcpy( pp, pP);
+#endif
 		MkPath( pp, MAX_PATH, ".dae" );
 
 		logStr( 2, "INFO: loadDAE: Open \"%s\"...\n", pp );

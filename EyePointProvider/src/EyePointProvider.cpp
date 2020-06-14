@@ -13,12 +13,20 @@
 #include "../../VIOSOWarpBlend/logging.h"
 #include "../../VIOSOWarpBlend/socket.h"
 
+#ifdef _WIN32
 HMODULE g_hModDll = 0;
+//HANDLE hThread = 0;
+#endif
+std::thread hThread;
+
+#include <chrono>
+
+using namespace std::chrono;
+
 bool bSineWave = false;
 unsigned short port = 0;
 EyePoint eyePointRcv;
 uint64_t tmStamp = 0;
-HANDLE hThread = 0;
 
 #define M_PI       3.14159265358979323846   // pi
 #define DEG2RADd( v ) ( (v) * double(M_PI / 180.0) )
@@ -30,13 +38,13 @@ struct Receiver
 };
  
 
-u_int __stdcall theadFn( void* param )
+u_int theadFn( void* param )
 {
 	logStr( 2, "start listener." );
 	ifStartSockets()
 	{
 		Socket sock( SOCK_DGRAM, false, IPPROTO_UDP, false, 0, 0 );
-		SocketAddress sa( INADDR_ANY, port );
+		SocketAddress sa( (long unsigned int )INADDR_ANY, port );
 		if( 0 != sock.bind( sa ) )
 		{
 			sock.close();
@@ -61,30 +69,42 @@ u_int __stdcall theadFn( void* param )
 					eyePointRcv.pitch *= DEG2RADd( 1 );
 					eyePointRcv.yaw *= DEG2RADd( 1 );
 					eyePointRcv.roll *= DEG2RADd( 1 );
-					__timeb64 tm;
-					_ftime_s( &tm );
-					tmStamp = tm.time * 1000 + tm.millitm;
+
+					//__timeb64 tm;
+					//_ftime_s( &tm );
+                    // tmStamp = tm.time * 1000 + tm.millitm;
+
+                    time_point<system_clock> now = system_clock::now();
+                    auto epoch = now.time_since_epoch();
+                    tmStamp = duration_cast<milliseconds>(epoch).count();
 				}
 			}
 		}
 	}
-	return 0;
+	// return 0;
 }
 
 void* CreateEyePointReceiver( char const* szParam )
 {
     auto r = new Receiver;
-	__timeb64 tm; 
-	_ftime_s( &tm );
-	r->beginTime = tm.time * 1000 + tm.millitm;
-	if( strstr( szParam, "sinewave" ) )
+
+    //__timeb64 tm;
+	//_ftime_s( &tm );
+	//r->beginTime = tm.time * 1000 + tm.millitm;
+    time_point<system_clock> now = system_clock::now();
+    auto epoch = now.time_since_epoch();
+    r->beginTime = duration_cast<milliseconds>(epoch).count();
+
+
+    if( strstr( szParam, "sinewave" ) )
 		bSineWave = true;
 	else if( strstr( szParam, "listen" ) )
 	{
 		if( 1 == sscanf_s( szParam, "listen %hu", &port ) && 0 < port )
 		{
-			if( 0 == hThread )
-				hThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE)theadFn, NULL, 0, NULL );
+			//if( 0 == hThread )
+			//	hThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE)theadFn, NULL, 0, NULL );
+			hThread = std::thread(theadFn, nullptr);
 		}
 	}
     return r;
@@ -95,10 +115,13 @@ bool ReceiveEyePoint(void *receiver, EyePoint* eyePoint)
 {
     auto r = static_cast<Receiver*>(receiver);
  
-	__timeb64 tm; 
-	_ftime_s( &tm );
-	auto duration = tm.time * 1000 + tm.millitm;// - r->beginTime;
- 
+	// __timeb64 tm;
+	// _ftime_s( &tm );
+	//auto duration = tm.time * 1000 + tm.millitm;// - r->beginTime;
+    time_point<system_clock> now = system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto duration = duration_cast<milliseconds>(epoch).count();
+
 	const double tick = 5000.0;
 
 	double ticks = double(duration) / tick;
@@ -230,8 +253,8 @@ void DeleteEyePointReceiver(void* handle)
     delete static_cast<Receiver*>(handle);
 }
  
-
-BOOL APIENTRY DllMain( HMODULE hModule,DWORD  ul_reason_for_call,LPVOID lpReserved)
+#ifdef _WIN32
+bool APIENTRY DllMain( HMODULE hModule,DWORD  ul_reason_for_call,LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
@@ -246,4 +269,4 @@ BOOL APIENTRY DllMain( HMODULE hModule,DWORD  ul_reason_for_call,LPVOID lpReserv
 	}
     return TRUE;
 }
-
+#endif

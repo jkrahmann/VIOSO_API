@@ -12,13 +12,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <bsd/string.h>
 #include <string>
+
 typedef int errno_t;
 static const errno_t NO_ERROR = 0;
 
-constexpr errno_t strcat_s(char* dest, size_t n, const char* src) { return n <= strlcat(dest, src, n); }
-constexpr errno_t strcpy_s(char* dest, size_t n, const char* src) { return n <= strlcpy(dest, src, n); }
-constexpr errno_t strncpy_s(char* dest, size_t n, const char* src, size_t count) { if (n < count) count = n; return n <= strlcpy(dest, src, count); }
+errno_t strcat_s(char* dest, size_t n, const char* src); // { return n <= strlcat(dest, src, n); }
+errno_t strcpy_s(char* dest, size_t n, const char* src); // { return n <= strlcpy(dest, src, n); }
+errno_t strncpy_s(char* dest, size_t n, const char* src, size_t count); // { if (n < count) count = n; return n <= strlcpy(dest, src, count); }
+
 #define vfprintf_s vfprintf
 #define fread_s(a,b,c,d,e) fread(a,c,d,e)
 #define _stricmp strcasecmp

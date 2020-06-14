@@ -62,12 +62,20 @@ VWB_ERROR VWBTCPListener::remove( VWB_Warper* pWarper )
 
 VWB_ERROR VWBTCPListener::sendInfoTo( SocketAddress sa, SocketAddress* local )
 {
+#ifdef _WIN32
 	if( 0 == sa.sin_addr.S_un.S_addr )
 		return VWB_ERROR_PARAMETER;
 	if( 0xFFFFFFFF == sa.sin_addr.S_un.S_addr )
 		return VWB_ERROR_PARAMETER;
+#else
+    if( 0 == sa.sin_addr.s_addr )
+        return VWB_ERROR_PARAMETER;
+    if( 0xFFFFFFFF == sa.sin_addr.s_addr )
+        return VWB_ERROR_PARAMETER;
+#endif
+
 	SocketAddress my;
-	if( NULL == local )
+	if(nullptr == local )
 	{
 		std::vector<in_addr> list = Socket::getLocalIPList();
 		my = SocketAddress( list[0].s_addr, sa.getPort() );
@@ -80,7 +88,7 @@ VWB_ERROR VWBTCPListener::sendInfoTo( SocketAddress sa, SocketAddress* local )
 		for( WarperList::iterator it = m_warpers.begin(); it != m_warpers.end(); it++ )
 		{
 			VWB_Warper_base* p = (VWB_Warper_base*)*it;
-			pos+= sprintf_s( &buf[pos], SO_RCVBUF-pos, "\"%s\" %dx%d.\015\012", p->channel, p->getMappingSize().cx, p->getMappingSize().cy );
+			pos+= snprintf( &buf[pos], SO_RCVBUF - pos, "\"%s\" %dx%d.\015\012", p->channel, p->getMappingSize().cx, p->getMappingSize().cy );
 		}
 		if( pos != Socket::sendDatagram( buf, pos, sa, true ) ) // sendto will always send all if smaller than SO_RECVBUF
 			return VWB_ERROR_NETWORK;

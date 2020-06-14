@@ -3,6 +3,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef __linux__
+#include <cstdint>
+#endif
+
 /*****************************************************************************/
 /*                                                                           */
 /*      888888888        ,o,                          / 888                  */
@@ -12463,7 +12467,11 @@ char *polyfilename;
       printf("Recovering segments in Delaunay triangulation.\n");
     }
 #ifdef TRILIBRARY
+#ifdef __linux__
+    strncpy( polyfilename, "input", 6);
+#else
     strcpy_s( polyfilename, 6, "input");
+#endif
     m->insegments = numberofsegments;
     segmentmarkers = segmentmarkerlist != (int *) NULL;
     index = 0;

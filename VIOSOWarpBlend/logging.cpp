@@ -26,7 +26,11 @@ int logStr( VWB_int level, char const* format, ... )
 			)
 		{
 			f = stdout;
-			err = NOERROR;
+#ifdef __linux__
+			err = NO_ERROR;
+#else
+            err = NOERROR;
+#endif
 		}
 		else if (
 			's' == g_logFilePath[0] &&

@@ -5,7 +5,7 @@
 #include <istream>
 #include <sstream>
 #include <utility>
-
+#include <algorithm>    // std::equal
 class JASONWrapper
 {
 public:
@@ -21,7 +21,7 @@ public:
 		FLOAT,
 		END
 	};
-	
+
 	struct Node
 	{
 		NODE_TYPE type;
@@ -147,7 +147,7 @@ public:
 		}
 
 		bool isIntegral() const
-		{ 
+		{
 			return NODE_TYPE::STRING <= type && type < NODE_TYPE::END;
 		}
 
@@ -168,8 +168,10 @@ public:
 					case NODE_TYPE::BOOL:
 					{
 						type = NODE_TYPE::BOOL;
-						const char* s( "TRUE" );
-						boolean = std::equal( str.begin(), str.end(), s, s + 5,
+						// const char* s( "TRUE" );
+						std::string s("TRUE");
+						boolean = std::equal( str.begin(), str.end(), s.begin(),
+						// s + 5,
 											  []( char const& c1, char const& c2 )
 						{
 							return c1 == c2 || toupper( c1 ) == toupper( c2 );

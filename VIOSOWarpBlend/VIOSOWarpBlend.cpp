@@ -8,6 +8,7 @@
 #pragma comment( lib, "shlwapi" )
 #include <shlwapi.h>
 #else
+#include "Net.h"
 #include <dlfcn.h>
 #endif
 #include "GL/GLWarpBlend.h"
@@ -28,11 +29,11 @@
 #include "3rdparty/delauney/DelaunayTriangles.h"
 
 VWB_size _size0 = { 0,0 };
-#ifdef WIN32
+//#ifdef WIN32
 Server g_server;
 typedef std::vector<SPtr<VWBTCPListener>> ListenerList;
 ListenerList g_listeners;
-#endif
+//#endif
 
 #ifdef WIN32
 HMODULE g_hModDll = 0;
@@ -108,7 +109,7 @@ VWB_ERROR VWB_Warper_base::ReadIniFile( char const* szConfigFile, char const* sz
 		GetIniString( "default", "eyePointProviderParam", NULL, sDef, MAX_PATH, path );
 		GetIniString( channel, "eyePointProviderParam", sDef, eyeProviderParam, MAX_PATH, path );
 
-		GetIniString( "default", "calibFile", "vioso.vwf", sDef, MAX_PATH, path );
+		GetIniString( "default", "calibFile", (char*)"vioso.vwf", sDef, MAX_PATH, path );
 		GetIniString( channel, "calibFile", sDef, calibFile, 12 * MAX_PATH, path );
 
 		iDef = GetIniInt( "default", "calibIndex", -1, path );
@@ -122,27 +123,27 @@ VWB_ERROR VWB_Warper_base::ReadIniFile( char const* szConfigFile, char const* sz
 		VWB_float const _Zero[16] = { 0 };
 		GetIniMat("default", "eye", 3, 1, _Zero, eye, path);
 
-		GetIniString( "default", "dir", "[0,0,0]", sDef, 1024, path );
+		GetIniString( "default", "dir", (char*)"[0,0,0]", sDef, 1024, path );
 		GetIniString( channel, "dir", sDef, s, 1024, path );
 		sscanf_s( s, "[%f,%f,%f]", &dir[0], &dir[1], &dir[2] );
 
-		GetIniString( "default", "fov", "[35,30,35,30]", sDef, 1024, path );
+		GetIniString( "default", "fov", (char*)"[35,30,35,30]", sDef, 1024, path );
 		GetIniString( channel, "fov", sDef, s, 1024, path );
 		sscanf_s( s, "[%f,%f,%f,%f]", &fov[0], &fov[1], &fov[2], &fov[3] );
 
-		GetIniString( "default", "near", "0.1", sDef, 1024, path );
+		GetIniString( "default", "near", (char*)"0.1", sDef, 1024, path );
 		GetIniString( channel, "near", sDef, s, 1024, path );
 		sscanf_s( s, "%f", &nearDist );
 
-		GetIniString( "default", "far", "10000", sDef, 1024, path );
+		GetIniString( "default", "far", (char*)"10000", sDef, 1024, path );
 		GetIniString( channel, "far", sDef, s, 1024, path );
 		sscanf_s( s, "%f", &farDist );
 
-		GetIniString( "default", "screen", "2000", sDef, 1024, path );
+		GetIniString( "default", "screen", (char*)"2000", sDef, 1024, path );
 		GetIniString( channel, "screen", sDef, s, 1024, path );
 		sscanf_s( s, "%f", &screenDist );
 
-		GetIniString( "default", "trans", "", sDef, 1024, path );
+		GetIniString( "default", "trans", (char*)"", sDef, 1024, path );
 		GetIniString( channel, "trans", sDef, s, 1024, path );
 		if(	16 != sscanf_s( s, "[%f,%f,%f,%f;%f,%f,%f,%f;%f,%f,%f,%f;%f,%f,%f,%f]", 
 						&trans[0], &trans[1], &trans[2], &trans[3],
@@ -151,7 +152,7 @@ VWB_ERROR VWB_Warper_base::ReadIniFile( char const* szConfigFile, char const* sz
 						&trans[12], &trans[13], &trans[14], &trans[15] )
 		  )
 		{
-			GetIniString( "default", "base", "[1,0,0,0;0,1,0,0;0,0,1,0;0,0,0,1]", sDef, 1024, path );
+			GetIniString( "default", "base", (char*)"[1,0,0,0;0,1,0,0;0,0,1,0;0,0,0,1]", sDef, 1024, path );
 			GetIniString( channel, "base", sDef, s, 1024, path );
 			sscanf_s( s, "[%f,%f,%f,%f;%f,%f,%f,%f;%f,%f,%f,%f;%f,%f,%f,%f]", 
 						&trans[0], &trans[4], &trans[8], &trans[12],
@@ -201,22 +202,22 @@ VWB_ERROR VWB_Warper_base::ReadIniFile( char const* szConfigFile, char const* sz
 		iDef = GetIniInt("default", "mouseMode", 0, path);
 		mouseMode = GetIniInt(channel, "mouseMode", iDef, path);
 
-		GetIniString( "default", "autoViewC", "1.0", sDef, 1024, path );
+		GetIniString( "default", "autoViewC", (char*)"1.0", sDef, 1024, path );
 		GetIniString( channel, "autoViewC", sDef, s, 1024, path );
 		sscanf_s( s, "%f", &autoViewC );
 
 		iDef = GetIniInt( "default", "bAutoView", 1, path );
 		bAutoView = 0 != GetIniInt( channel, "bAutoView", iDef, path );
 
-		GetIniString( "default", "optimalRes", "[0,0]", sDef, 1024, path );
+		GetIniString( "default", "optimalRes", (char*)"[0,0]", sDef, 1024, path );
 		GetIniString( channel, "optimalRes", sDef, s, 1024, path );
 		sscanf_s( s, "[%i,%i]", &optimalRes.cx, &optimalRes.cy );
 
-		GetIniString( "default", "optimalRes", "[0,0]", sDef, 1024, path );
+		GetIniString( "default", "optimalRes", (char*)"[0,0]", sDef, 1024, path );
 		GetIniString( channel, "optimalRes", sDef, s, 1024, path );
 		sscanf_s( s, "[%d,%d]", &optimalRes.cx, &optimalRes.cy );
 
-		GetIniString( "default", "optimalRect", "[0,0,0,0]", sDef, 1024, path );
+		GetIniString( "default", "optimalRect", (char*)"[0,0,0,0]", sDef, 1024, path );
 		GetIniString( channel, "optimalRect", sDef, s, 1024, path );
 		sscanf_s( s, "[%d,%d,%d,%d]", &optimalRect.left, &optimalRect.top, &optimalRect.right, &optimalRect.bottom );
 
@@ -226,7 +227,7 @@ VWB_ERROR VWB_Warper_base::ReadIniFile( char const* szConfigFile, char const* sz
 		iDef = GetIniInt( "default", "port", 0, path );
 		port = GetIniInt( channel, "port", iDef, path );
 
-		GetIniString( "default", "addr", "0.0.0.0", sDef, MAX_PATH, path );
+		GetIniString( "default", "addr", (char*)"0.0.0.0", sDef, MAX_PATH, path );
 		GetIniString( channel, "addr", sDef, addr, MAX_PATH, path );
 
 		iDef = GetIniInt( "default", "debugBreak", 0, path );
@@ -594,7 +595,7 @@ void VWB_Destroy( VWB_Warper* pWarper )
 			}
 		}
 	}
-#endif def WIN32
+#endif // def WIN32
 	if( pWarper )
 		delete (VWB_Warper_base*)pWarper;
 }
@@ -2901,4 +2902,4 @@ BOOL APIENTRY DllMain( HMODULE hModule,DWORD  ul_reason_for_call,LPVOID lpReserv
   void __attribute__ ((destructor)) my_fini(void)
   {
   }
-#endif /def WIN32
+#endif //def WIN32

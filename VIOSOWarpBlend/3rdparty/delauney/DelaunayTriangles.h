@@ -63,7 +63,7 @@
 	};
 
 	void triangulate(char *, struct triangulateio *, struct triangulateio *, struct triangulateio *);
-	void trifree(VOID *memptr);
+	void trifree(void* memptr);
 
 	/** Destroys all dynamic generated buffer and set all values to zero. */
 	void DestroyTriangulateCont(triangulateio& cont);

@@ -63,7 +63,8 @@ VWB_ERROR LoadVWF( VWB_WarpBlendSet& set, char const* path )
 		VWB_WarpBlendSet::size_type nBefore = set.size();
 		pP2 = strchr( pP, ',' );
 		if( pP2 )
-			strncpy_s( pp, pP, pP2 - pP );
+			// strncpy_s( pp, pP, pP2 - pP );
+            strncpy( pp, pP, pP2 - pP );
 		else
 			strcpy( pp, pP );
 		MkPath( pp, MAX_PATH, ".vwf" );
@@ -422,7 +423,9 @@ VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_WarpRecord const* map, std:
 VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_WarpRecord const* map, char const* path )
 {
 	char pp[MAX_PATH];
-	strcpy_s( pp, path );
+	//strcpy_s( pp, path );
+	strcpy(pp, path);
+
 	MkPath( pp, MAX_PATH, ".bmp" );
 	std::ofstream os( pp, std::ios_base::binary );
 	if( os.bad() )
@@ -507,7 +510,8 @@ VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord2 const* map, st
 VWB_ERROR SaveBMP_RGBA( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, char const* path )
 {
 	char pp[MAX_PATH];
-	strcpy_s( pp, path );
+	// strcpy_s( pp, path );
+    strcpy( pp, path );
 	MkPath( pp, MAX_PATH, ".bmp" );
 	std::ofstream os( pp, std::ios_base::binary );
 	if( os.bad() )
@@ -522,7 +526,8 @@ VWB_ERROR SaveBMP_RGBA( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map
 VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, char const* path )
 {
 	char pp[MAX_PATH];
-	strcpy_s( pp, path );
+	//strcpy_s( pp, path );
+	strcpy( pp, path );
 	MkPath( pp, MAX_PATH, ".bmp" );
 	std::ofstream os( pp, std::ios_base::binary );
 	if( os.bad() )
@@ -537,7 +542,8 @@ VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord const* map, cha
 VWB_ERROR SaveBMP( VWB_WarpFileHeader4 const& h, VWB_BlendRecord2 const* map, char const* path )
 {
 	char pp[MAX_PATH];
-	strcpy_s( pp, path );
+	//strcpy_s( pp, path );
+	strcpy( pp, path );
 	MkPath( pp, MAX_PATH, ".bmp" );
 	std::ofstream os( pp, std::ios_base::binary );
 	if( os.bad() )
@@ -612,7 +618,8 @@ VWB_ERROR SaveVWF( VWB_WarpBlendSet const& set, std::ostream& os )
 VWB_ERROR SaveVWF(VWB_WarpBlendSet const& set, char const* path)
 {
 	char pp[MAX_PATH];
-	strcpy_s(pp, path);
+	//strcpy_s(pp, path);
+	strcpy(pp, path);
 	MkPath(pp, MAX_PATH, ".vwf");
 	std::ofstream os( pp, std::ios_base::binary );
 	if (os.bad())
@@ -798,7 +805,8 @@ VWB_ERROR ScanVWF( char const* path, VWB_WarpBlendHeaderSet* set )
 	{
 		pP2 = strchr( pP, ',' );
 		if( pP2 )
-			strncpy_s( pp, pP, pP2 - pP );
+			strncpy( pp, pP, pP2 - pP );
+			//strncpy_s( pp, pP, pP2 - pP );
 		else
 			strcpy( pp, pP );
 		MkPath( pp, MAX_PATH, ".vwf" );
@@ -1010,37 +1018,74 @@ VWB_ERROR AddUnwarped2DTo( VWB_WarpBlendSet& set, const char* path, int xPos, in
 
 	VWB_ERROR ret = VWB_ERROR_NONE;
 	char pp[MAX_PATH];
-	strcpy_s( pp, path );
+	//strcpy_s( pp, path );
+	strcpy( pp, path );
 	MkPath( pp, MAX_PATH, ".vwf" );
 
 	// create basic set, no warping no blending
 	VWB_uint nRecords = (VWB_uint)width * (VWB_uint)height;
 	set.push_back( new VWB_WarpBlend() );
 	set.back()->header = {
+            {'v','w','f','0'},
+            (VWB_uint)0,
+            (VWB_uint)0,
+            (VWB_uint)0,
+            (VWB_uint)0,
+            (VWB_int)0,
+            (VWB_int)0,
+            VWB_float{0},
+            VWB_float{0},
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float(0.f),
+            VWB_float{0},
+            char{0},
+            char{0},
+            VWB_ull(0),
+            VWB_float{0},
+            VWB_float{0},
+            char{0},
+            VWB_float{0},
+            VWB_wchar{0},
+            char{0}
+	};
+
+	        /*{
 		{'v','w','f','0'},
-		sizeof( VWB_WarpFileHeader4 ),
+		(VWB_uint)sizeof( VWB_WarpFileHeader4 ),
 		FLAG_WARPFILE_HEADER_CALIBRATION_BASE_TYP|FLAG_WARPFILE_HEADER_OFFSET|FLAG_WARPFILE_HEADER_BLACKLEVEL_CORR,
 		0x10001,
-		nRecords *sizeof( VWB_WarpRecord ),
+        (VWB_uint)(nRecords * sizeof( VWB_WarpRecord )),
 		width,	height,
-		{1,1,1,1},
-		{0,0,0,0},
+		{1.f,1.f,1.f,1.f},
+		{0.f,0.f,0.f,0.f},
 		(VWB_float)splitY,(VWB_float)splitX,(VWB_float)splitH,(VWB_float)splitW,VWB_float( splitW * width ),VWB_float( splitH * height ),
 		TYP_CALIBBASE_DISPLAY_COMPOUND,
 		(VWB_float)xPos,(VWB_float)yPos,
-		0,0,0,
-		0,
-		{0,0,0},
+		0.f,0.f,0.f,
+		0.f,
+		{0.f,0.f,0.f},
 		"dummy",
 		{0},
 		0,
-		{0,0,(VWB_float)width,(VWB_float)height,1.0f/width,1.0f/height,VWB_float(width*height)},
-		{0,0,1,1,1,0,0,1,1},
+		{0.f,0.f,(VWB_float)width,(VWB_float)height,1.0f/width,1.0f/height,VWB_float(width*height)},
+		{0.f,0.f,1.f,1.f,1.f,0.f,0.f,1.f,1.f},
 		{0},
 		{0},
 		{0},
 		"localhost"
 	};
+	*/
 	// set.back()->header = wfh;
 	strcpy( set.back()->path, pp );
 

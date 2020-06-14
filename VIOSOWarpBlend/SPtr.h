@@ -299,7 +299,7 @@ public:
 	* get the current reference count of the managed pointer
 	* @return current reference count of the managed pointer
 	*/
-	unsigned int ref() const { piRef ? *piRef : 0; }
+	unsigned int ref() const { return piRef ? *piRef : 0; }
 
 	/*
 	* attach

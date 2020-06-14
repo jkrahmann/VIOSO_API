@@ -28,11 +28,15 @@
 
 #else /* WIN32 */
 
-	#include "sys/socket.h"
-	#include "sys/types.h"
-	#include "sys/param.h"
-	#include "sys/time.h"
-	#include "netinet/in.h"
+	#include <sys/socket.h>
+	#include <sys/types.h>
+	#include <sys/param.h>
+    #include <sys/select.h> // FD_SET
+	#include <sys/time.h>
+	#include <netinet/in.h>
+    #include <netdb.h>  // addrinfo
+    #include <stdlib.h> // itoa
+    #include <stdio.h>
 
 	#define SOCKET int
 	#define INVALID_SOCKET (SOCKET)(~0)
@@ -250,7 +254,7 @@ public:
 	Socket accept( SocketAddress& peerAddr )
 	{ 
 		int l = sizeof( SocketAddress );
-		return (SOCKET)::accept(sock, (sockaddr*)&peerAddr, &l );
+		return (SOCKET)::accept(sock, (sockaddr*)&peerAddr, (socklen_t*)&l );
 	}; 
 
 	// check socket to be ready to read from, operation blocks
@@ -359,7 +363,7 @@ protected:
 public:
 
 	DataPackage& front() { return m_received.front(); }
-	int size() { (int)m_received.size(); }
+	int size() { return (int)m_received.size(); }
 	void pop() { m_received.pop(); }
 
 	UDPListener( SocketAddress& sa );
@@ -379,7 +383,7 @@ protected:
 	TCPListener( TCPListener const& other ) : SockIn( other ) {}
 	TCPListener() : SockIn() {}
 public:
-	int size() { (int)m_peers.size(); }
+	int size() { return (int)m_peers.size(); }
 	Peer& getPeer( int i ) { return m_peers[i]; }
 	Peer const& getPeer( int i ) const { return m_peers[i]; }
 	int getPeerIndex( TCPConnection const* pC ) const;
@@ -531,8 +535,14 @@ public:
 	} MODALSTATE;
 protected:
 	Listeners	m_listeners;
+#ifdef _WIN32
 	FD_SET		m_readers;
-	FD_SET		m_writers;
+	FD_SET		m_writers
+#else
+    // FD_SET() is a function defined in sys/select.h
+    fd_set		m_readers;
+    fd_set		m_writers;
+#endif
 	int			m_modalState;
 	std::thread	m_thread;
 	std::mutex	m_mtxGlobal;

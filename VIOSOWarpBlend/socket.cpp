@@ -4,6 +4,9 @@
 #include <limits>
 #include <string>
 #include <sstream>
+#include <cstring>
+#include <stdio.h>
+
 
 // ----------------------------------------------------------------------------------
 //                               SocketAddress
@@ -40,8 +43,11 @@ SocketAddress::SocketAddress(char const* url, unsigned short port)
 
 	if( INADDR_NONE == sin_addr.s_addr )
 	{
-		addrinfo* pai = NULL;
-		char portStr[6]; _itoa_s( port, portStr, 10 );
+		addrinfo* pai = nullptr;
+		//char portStr[6];
+		//_itoa_s( port, portStr, 10 );
+		const char* portStr = std::to_string(port).c_str();
+
 		addrinfo hints = { 0 };
 		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_STREAM;
@@ -91,7 +97,11 @@ SocketAddress SocketAddress::broadcast(unsigned short port)
 	memset(&sa,0,sizeof(sa));
 	sa.sin_family = AF_INET;
 	sa.sin_port   = Socket::hton(port);
+#ifdef _WIN32
 	sa.sin_addr.S_un.S_addr = INADDR_BROADCAST;
+#else
+	sa.sin_addr.s_addr = INADDR_BROADCAST;
+#endif
 	return sa;
 }
 
@@ -102,16 +112,18 @@ int Socket::create(int type, bool broadcast, int protocol, bool keepAlive,u_int 
 	int err;
 
 	sock=socket( AF_INET, type, protocol);
-		
+
+#ifdef _WIN32
 	if(sock==INVALID_SOCKET)
 		return WSAGetLastError();
+#endif // on posix systems errno will be set : #include <errno.h> -> read errno
 
 	if(broadcast)
 	{
 		if( (SOCK_DGRAM==type) && ( (sock!=SOCKET_ERROR) || (sock!=INVALID_SOCKET) ) )
 		{
-			BOOL param=1;
-			int err=::setsockopt( sock, SOL_SOCKET, SO_BROADCAST, (const char*)&param, sizeof(BOOL));
+			bool param=1;
+			int err=::setsockopt( sock, SOL_SOCKET, SO_BROADCAST, (const char*)&param, sizeof(bool));
 			if(err==SOCKET_ERROR) 
 				return err;
 		} 
@@ -134,7 +146,11 @@ int Socket::create(int type, bool broadcast, int protocol, bool keepAlive,u_int 
 		if( !getRecvBuffSize(sz) && (sz<(int)qRecvBuffer))
 		{
 			sz=(int)qRecvBuffer;
+#ifdef _WIN32
 			err=::setsockopt( sock, SOL_SOCKET, SO_RCVBUF, (const char FAR*)&sz, sizeof(sz));
+#else
+			err=::setsockopt( sock, SOL_SOCKET, SO_RCVBUF, (const void*)&sz, sizeof(sz));
+#endif
 			if(err)
 				return err;
 		}
@@ -146,7 +162,11 @@ int Socket::create(int type, bool broadcast, int protocol, bool keepAlive,u_int 
 		if( !getSendBuffSize(sz) && (sz<(int)qSendBuffer))
 		{
 			sz=(int)qSendBuffer;
-			err=::setsockopt( sock, SOL_SOCKET, SO_SNDBUF, (const char FAR*)&sz, sizeof(sz));
+#ifdef _WIN32
+            err=::setsockopt( sock, SOL_SOCKET, SO_SNDBUF, (const char FAR*)&sz, sizeof(sz));
+#else
+            err=::setsockopt( sock, SOL_SOCKET, SO_SNDBUF, (const void*)&sz, sizeof(sz));
+#endif
 			if(err)
 				return err;
 		}
@@ -157,13 +177,21 @@ int Socket::create(int type, bool broadcast, int protocol, bool keepAlive,u_int 
 
 int Socket::setRecvBuff(int size)
 {
-	return ::setsockopt( sock, SOL_SOCKET, SO_RCVBUF, (const char FAR*)&size, sizeof(size));
+#ifdef _WIN32
+    return ::setsockopt( sock, SOL_SOCKET, SO_RCVBUF, (const char FAR*)&size, sizeof(size));
+#else
+    return ::setsockopt( sock, SOL_SOCKET, SO_RCVBUF, (const void*)&size, sizeof(size));
+#endif
 }
 
 int Socket::getRecvBuffSize(int& size)
 {
 	int len=sizeof(size);
-	int err=::getsockopt( sock, SOL_SOCKET, SO_RCVBUF, (char FAR*)&size, &len);
+#ifdef _WIN32
+    int err=::getsockopt( sock, SOL_SOCKET, SO_RCVBUF, (char FAR*)&size, &len);
+#else
+    int err=::getsockopt( sock, SOL_SOCKET, SO_RCVBUF, (void*)&size, (socklen_t *)&len);
+#endif
 
 	if( err || (size<0))
 	{
@@ -177,7 +205,11 @@ int Socket::getRecvBuffSize(int& size)
 int Socket::getSendBuffSize(int& size)
 {
 	int len=sizeof(size);
-	int err=::getsockopt( sock, SOL_SOCKET, SO_SNDBUF, (char FAR*)&size, &len);
+#ifdef _WIN32
+    int err=::getsockopt( sock, SOL_SOCKET, SO_SNDBUF, (char FAR*)&size, &len);
+#else
+    int err=::getsockopt( sock, SOL_SOCKET, SO_SNDBUF, (void*)&size, (socklen_t *)&len);
+#endif
 
 	if( err || (size<0))
 	{
@@ -190,7 +222,7 @@ int Socket::getSendBuffSize(int& size)
 
 int Socket::close()
 { 
-	if(sock == NULL || sock == INVALID_SOCKET) 
+	if(sock || sock == INVALID_SOCKET)
 		return SOCKET_ERROR;
 	int ret=0;
 
@@ -207,40 +239,40 @@ int Socket::close()
 int Socket::tryRead(const double timeout) const 
 {
 	fd_set fd={1,sock};
-	timeval t,*pt=NULL;
+	timeval t,*pt=nullptr;
 	if(timeout < INFINITETIMEOUT) 
 	{
 		t.tv_sec=(long)timeout;
 		t.tv_usec=suseconds_t((timeout-t.tv_sec) * 1000000.0);
 		pt=&t;
 	}
-	return ::select(0,&fd,NULL,NULL,pt);
+	return ::select(0,&fd,nullptr,nullptr,pt);
 }
 
 int Socket::tryWrite(const double timeout) const 
 {
 	fd_set fd={1,sock};
-	timeval t,*pt=NULL;
+	timeval t,*pt=nullptr;
 	if(timeout < INFINITETIMEOUT) 
 	{
 		t.tv_sec=(long)timeout;
 		t.tv_usec=suseconds_t((timeout-t.tv_sec) * 1000000.0);
 		pt=&t;
 	}
-	return ::select(0,NULL,&fd,NULL,pt);
+	return ::select(0,nullptr,&fd,nullptr,pt);
 }
 
 int Socket::test(const double timeout) const
 {
 	fd_set fd={1,sock};
-	timeval t,*pt=NULL;
+	timeval t,*pt=nullptr;
 	if(timeout < INFINITETIMEOUT) 
 	{
 		t.tv_sec=(long)timeout;
 		t.tv_usec=suseconds_t((timeout-t.tv_sec) * 1000000.0);
 		pt=&t;
 	}
-	return ::select(0,NULL,NULL,&fd,pt);
+	return ::select(0,nullptr,nullptr,&fd,pt);
 }
 
 int	Socket::send(const char* pch, const int iSize, const double timeout)
@@ -257,8 +289,13 @@ int	Socket::send(const char* pch, const int iSize, const double timeout)
 		iBytesThisTime=::send( sock, pch, i, 0);
 		if(iBytesThisTime<=0)
 		{
+#ifdef _WIN32
 			if( (iBytesThisTime==0) || (::WSAGetLastError()!=WSAENOBUFS) )
 				break;
+#else
+            if( (iBytesThisTime==0) || (errno != ENOBUFS) )
+                break;
+            #endif
 			for( qBuf=i>>1; qBuf>0 ; qBuf>>=1)
 			{
 				iBytesThisTime=::send( sock, pch, qBuf, 0);
@@ -314,18 +351,18 @@ SocketAddress	Socket::getpeeraddr()
 { 
 	sockaddr a;
 	int addLen=sizeof(sockaddr);
-	if(::getpeername(sock,&a,&addLen) == SOCKET_ERROR)
+	if(::getpeername(sock,&a,(socklen_t*)&addLen) == SOCKET_ERROR)
 		a.sa_family=AF_UNSPEC;
 	return a;
 }
 
 SocketAddress   Socket::getsockaddr() 
 {
-	sockaddr a;
+	sockaddr a={0};
 	int addLen=sizeof(sockaddr);
 
-	ZeroMemory( &a, addLen);
-	if(::getsockname( sock, &a, &addLen)==SOCKET_ERROR)
+	// ZeroMemory( &a, addLen);
+	if(::getsockname( sock, &a, (socklen_t*)&addLen)==SOCKET_ERROR)
 		a.sa_family=AF_UNSPEC;
 
 	return a;
@@ -334,16 +371,17 @@ SocketAddress   Socket::getsockaddr()
 int Socket::getsockaddr(sockaddr_in& addr,int& qAddr)
 {
 	qAddr=sizeof(sockaddr_in);
-	ZeroMemory( &addr, qAddr);
-	return ::getsockname( sock, (sockaddr*)&addr, &qAddr);
+	//ZeroMemory( &addr, qAddr);
+	addr={0};
+	return ::getsockname(sock, (sockaddr*)&addr, reinterpret_cast<socklen_t *>(&qAddr));
 }
 
 int Socket::sendDatagram(const char* pch,const int iSize,SocketAddress& sa, bool dontRoute)
 {
 	//fd_set fd={1,sock};
 
-	//if(::select( 0, NULL, &fd, NULL, NULL)==1)
-		return ::sendto( sock, pch, iSize,(dontRoute)? MSG_DONTROUTE : 0, sa, sizeof(SOCKADDR));
+	//if(::select( 0, nullptr, &fd, nullptr, nullptr)==1)
+		return ::sendto( sock, pch, iSize,(dontRoute)? MSG_DONTROUTE : 0, sa, sizeof(sockaddr));
 
 	//return 0;
 }
@@ -352,7 +390,7 @@ int Socket::recvDatagram(char* pch,const int iSize, SocketAddress* sa)
 {
 	fd_set fd={ 1, sock};
 	socklen_t size=sizeof(SocketAddress);
-	int res=::select( 0, &fd, NULL, NULL, 0);
+	int res=::select( 0, &fd, nullptr, nullptr, 0);
 
 	if( (res!=SOCKET_ERROR) && (res>0) )
 	{
@@ -376,7 +414,7 @@ int Socket::close(SOCKET& s)
 	ret=::close(s);
 #endif /* def WIN32 */
 
-	s=NULL;
+	s=0;
 
 	return ret;
 }
@@ -384,8 +422,9 @@ int Socket::close(SOCKET& s)
 //static
 SocketAddress	Socket::gethostbyname(const std::string& name, const unsigned short port)
 { 
-	addrinfo* pai = NULL;
-	char portStr[6]; _itoa_s( port, portStr, 10 );
+	addrinfo* pai = nullptr;
+	//char portStr[6]; _itoa_s( port, portStr, 10 );
+	const char* portStr = std::to_string(port).c_str();
 	addrinfo hints = { 0 };
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
@@ -409,7 +448,7 @@ SocketAddress	Socket::gethostbyname(const std::string& name, const unsigned shor
 std::string Socket::gethostname()
 {
 	std::string s;
-	int len = ::gethostname( NULL, 0 );
+	int len = ::gethostname( nullptr, 0 );
 	if( 0 < len )
 	{
 		s.resize( len + 1, 0 );
@@ -422,13 +461,15 @@ std::string Socket::gethostname()
 std::vector<in_addr> Socket::getLocalIPList()
 {
 	std::vector<in_addr> l;
-	static const in_addr lh = {127,0,0,1};
+	//static const in_addr lh = {127,0,0,1};
+	static const in_addr lh = { inet_addr("127.0.0.1") };
 
 	std::string s( 256, 0 );
 	if( 0 == ::gethostname( &s[0], 256 ) )
 	{
-		addrinfo* pai = NULL;
-		char portStr[6]; _itoa_s( 80, portStr, 10 );
+		addrinfo* pai = nullptr;
+		//char portStr[6]; _itoa_s( 80, portStr, 10 );
+		const char* portStr = std::to_string(80).c_str();
 		addrinfo hints = { 0 };
 		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_STREAM;
@@ -453,13 +494,13 @@ std::vector<in_addr> Socket::getLocalIPList()
 std::string	Socket::gethostbyaddr(const SocketAddress& sa)
 { 
 	char name[1096];
-	if( SOCKET_ERROR == getnameinfo((SOCKADDR*)&sa.sin_addr,sizeof(sa.sin_addr), name, 1096, NULL, 0, NI_NUMERICSERV ) )
+	if( SOCKET_ERROR == getnameinfo((sockaddr*)&sa.sin_addr,sizeof(sa.sin_addr), name, 1096, nullptr, 0, NI_NUMERICSERV ) )
 		return std::string(); // returning an empty string
  	return name;
 }
 
 //static
-u_int64	Socket::ntoh(u_int64   netlong)
+uint64_t	Socket::ntoh(uint64_t   netlong)
 {
 	if(htons(1)==1)
 	{
@@ -477,12 +518,12 @@ u_int64	Socket::ntoh(u_int64   netlong)
 		c2[5]=c[2];
 		c2[6]=c[1];
 		c2[7]=c[0];
-		return reinterpret_cast<u_int64&>(*c2);
+		return reinterpret_cast<uint64_t&>(*c2);
 	}
 } 
 
 //static
-u_int64	Socket::hton(u_int64   hostlong)
+uint64_t	Socket::hton(uint64_t   hostlong)
 {
 	if(htons(1)==1) 
 	{
@@ -500,7 +541,7 @@ u_int64	Socket::hton(u_int64   hostlong)
 		c2[5]=c[2];
 		c2[6]=c[1];
 		c2[7]=c[0];
-		return reinterpret_cast<u_int64&>(*c2);
+		return reinterpret_cast<uint64_t&>(*c2);
 	}
 
 }
@@ -542,7 +583,7 @@ int UDPListener::processRead( Server* pServer )
 {
 	DataPackage a( std::string( m_szRcvBuff, 0 ), SocketAddress() );
 	int size=(int)sizeof(SocketAddress);
-	int r = ::recvfrom( sock, &a.first[0], (int)a.first.size(), 0, (struct sockaddr*)&a.second, &size );
+	int r = ::recvfrom( sock, &a.first[0], (int)a.first.size(), 0, (struct sockaddr*)&a.second, (socklen_t*)&size );
 	if( 0 < r )
 	{
 		a.first.resize(r);
@@ -566,7 +607,7 @@ TCPListener::TCPListener(SocketAddress& sa)
 int TCPListener::processRead( Server* pServer )
 {
 	Peer peer;
-	peer.pData = NULL;
+	peer.pData = nullptr;
 	peer.s = new TCPConnection( Socket::accept(peer.sa), peer.sa, this, pServer );
 	if( 0 < *peer.s )
 	{
@@ -618,8 +659,8 @@ TCPConnection::TCPConnection( SocketAddress connectTo ) // client connection
 , m_iSndBuffSize( 0 )
 , m_iReadOffs(0)
 , m_peerAddr( connectTo )
-, m_pListener( NULL )
-, m_pServer( NULL )
+, m_pListener( nullptr )
+, m_pServer( nullptr )
 , m_bPendingSend( false )
 , m_iReadSize(0)
 , m_sto()
@@ -712,14 +753,14 @@ int TCPConnection::read( char* buff, int szBuff, int size )
 int TCPConnection::readUntil( char* buff, int iBuffSize, const char* szDelimiter )
 {
 	int r = 0;
-	if( NULL == szDelimiter || 0 == szDelimiter[0] )
+	if( nullptr == szDelimiter || 0 == szDelimiter[0] )
 		szDelimiter = "\015\012";
 	const int iDelSize = (int)strlen( szDelimiter );
 
 	VWB_LockedStatement( m_mtxRWIn )
 	{
 		auto it = m_strIn.begin();
-		char* pL = NULL;
+		char* pL = nullptr;
 		int nn = 0;
 		if( it != m_strIn.end() )
 		{
@@ -769,7 +810,7 @@ int TCPConnection::readUntil( char* buff, int iBuffSize, const char* szDelimiter
 		if( m_strIn.end() == it )
 			return 0; // not found
 
-		if( NULL == buff )
+		if( nullptr == buff )
 			return r + 1;
 
 		if( r > iBuffSize )
@@ -820,21 +861,30 @@ int TCPConnection::processAsClient()
 {
 	int n = 0;
 	timeval to = m_sto;
+#ifdef _WIN32
 	FD_SET r;FD_ZERO(&r);
 	FD_SET( *this, &r );
 	FD_SET w;FD_ZERO(&w);
 	if( m_bPendingSend )
 		FD_SET( *this, &w );
 	FD_SET e;FD_ZERO(&e);
+#else
+    fd_set r;FD_ZERO(&r);
+    FD_SET( *this, &r );
+    fd_set w;FD_ZERO(&w);
+    if( m_bPendingSend )
+        FD_SET( *this, &w );
+    fd_set e;FD_ZERO(&e);
+#endif
 	n = ::select( 1, &r, &w, &e, &to );
 	if( 0 < n )
 	{
 		if( FD_ISSET( *this, &r ) )
-			n = processRead( NULL );
+			n = processRead( nullptr );
 		if( FD_ISSET( *this, &w ) )
-			n = processWrite( NULL );
+			n = processWrite( nullptr );
 		if( FD_ISSET( *this, &w ) )
-			n = processError( NULL );
+			n = processError( nullptr );
 	}
 	if( SOCKET_ERROR == n )
 	{
@@ -1016,7 +1066,7 @@ bool HttpRequest::writeTo( TCPConnection& conn )
 
 HttpRequest::STATE HttpRequest::parseRequest( TCPConnection& conn )
 {
-	char* pB = NULL;
+	char* pB = nullptr;
 	int nB = 0;
 	switch( state )
 	{
@@ -1176,11 +1226,11 @@ int HttpRequest::parseURL( std::string const& request, std::string& site, ParamM
 
 int HttpRequest::parseHttpHeader( char const* szIn, TYPE& type, std::string& request, ParamMap& headers )
 {
-	if( NULL == szIn )
+	if( nullptr == szIn )
 		return -1;
 	char const* p = szIn;
 	char const* pE = strstr( p, "\015\012" );
-	if( NULL == pE )
+	if( nullptr == pE )
 		return SOCKET_ERROR;
 	request = std::string( p, pE - p );
 
@@ -1210,8 +1260,8 @@ int HttpRequest::parseHttpHeader( char const* szIn, TYPE& type, std::string& req
 int HttpRequest::parseHeader( char const* p, ParamMap& headers )
 {
 	char const* pS = p;
-	char const* pE = NULL;
-	while( *p && NULL != ( pE = strstr( p,  "\015\012" ) ) )
+	char const* pE = nullptr;
+	while( *p && nullptr != ( pE = strstr( p,  "\015\012" ) ) )
 	{
 		std::string s( p, pE - p );
 		if( s.empty() )
@@ -1230,7 +1280,7 @@ int HttpRequest::parseHeader( char const* p, ParamMap& headers )
 
 int HttpRequest::parseHeaderLine( char const* p, ParamMap& params )
 {
-	char const* pE = NULL;
+	char const* pE = nullptr;
 	while( p )
 	{
 		pE = strstr( p,  "; " );
@@ -1426,7 +1476,9 @@ Server::~Server()
 		m_modalState = 0;
 		m_thread.join();
 	}
-	closeSockets();
+#ifdef _WIN32
+    closeSockets(); // #define closeSockets (0) ???
+#endif
 }
 
 int Server::addReceiver( SPtr<SockIn> s )
@@ -1497,16 +1549,25 @@ int Server::doModalStep()
 {
 	int n = 0;
 	timeval to = m_sto;
+#ifdef _WIN32
 	FD_SET r;
 	FD_SET w;
+#else
+    fd_set r;
+    fd_set w;
+ #endif
 	VWB_LockedStatement( m_mtxGlobal )
 	{
-		if( 0 != m_readers.fd_count ) // there can't be any writers without readers in TCP
+#ifdef _WIN32
+        if( 0 != m_readers.fd_count ) // there can't be any writers without readers in TCP
+#else
+        if( 0 != m_readers.fds_bits ) // there can't be any writers without readers in TCP
+#endif
 		{
 			r = m_readers;
 			w = m_writers;
 			Listeners tmp = m_listeners;
-			n = ::select( (int)m_listeners.size(), &r, &w, NULL, &to );
+			n = ::select( (int)m_listeners.size(), &r, &w, nullptr, &to );
 			if( 0 < n )
 			{
 				// handle readers
@@ -1571,7 +1632,8 @@ int Server::doModal()
 			m_thread.join();
 		}
 	}
-	m_thread.swap( std::thread( Server::_theadFn, this ) );
+    std::thread newThread = std::thread( Server::_theadFn, this );
+    m_thread.swap(newThread);
 	if( m_thread.joinable() )
 		return 0;
 	logStr( 0, "Server: FATAL ERROR cannot sart listener loop.\n" );
@@ -1606,7 +1668,7 @@ bool Server::isRunningModal()
 
 void Server::_theadFn( void* param )
 {
-	if( NULL == param )
+	if( nullptr == param )
 		return;
 	//return
 	((Server*)param)->modalLoop();
@@ -1616,19 +1678,23 @@ void Server::_theadFn( void* param )
 ////////////////////////////////////// copy paste functions; TODO: wrap a nice HTTP client class arround ///////////////////////
 // return
 // response code
-int ParseStdResponseCode( LPCSTR pStr, DWORD qStr )
+int ParseStdResponseCode( const char* pStr, unsigned int qStr )
 {
 	if( !( pStr && qStr ) )
 		return 500;
 
 	int i;
-	DWORD q;
+	unsigned int q;
 	const char* pLnEnd;
 	const char* pTotEnd = pStr + qStr;
 
 	for( pLnEnd = pStr; ( pLnEnd < pTotEnd ) && ( *pLnEnd != '\n' ); pLnEnd++ );
-	q = (DWORD)( pLnEnd - pStr );
+	q = (unsigned int)( pLnEnd - pStr );
+#ifdef _WIN32
 	if( ( q > 11 ) && !_strnicmp( pStr, "http/", 5 ) )
+#else
+	if( ( q > 11 ) && !strncasecmp( pStr, "http/", 5 ) )
+#endif
 	{
 		for( pStr += 5; ( pStr < pLnEnd ) && ( *pStr != ' ' ); pStr++ );
 		for( pStr++; ( pStr < pLnEnd ) && ( *pStr == ' ' ); pStr++ );
@@ -1655,28 +1721,28 @@ int ParseStdResponseCode( LPCSTR pStr, DWORD qStr )
 	return 500;
 }
 
-BOOL SendHTTP( LPCSTR szHost, unsigned short iPort, LPCSTR szURI, LPCSTR szName, std::istream* content, LPCSTR szMime, LPCSTR szFileName, LPCSTR szFileClass, std::string* response )
+bool SendHTTP( const char* szHost, unsigned short iPort, const char* szURI, const char* szName, std::istream* content, const char* szMime, const char* szFileName, const char* szFileClass, std::string* response )
 {
 	if( ( nullptr == szHost || 0 == szHost[0] ) )
-		return FALSE;
+		return false;
 	if( 0 == iPort )
 		iPort = 80;
 	if( nullptr == szURI )
 		szURI = "/";
 
 	Socket sock;
-	if( sock.create( SOCK_STREAM, FALSE, IPPROTO_TCP, FALSE, 0, 0 ) )
-		return FALSE;
+	if( sock.create( SOCK_STREAM, false, IPPROTO_TCP, false, 0, 0 ) )
+		return false;
 
 	SocketAddress dstAddr = SocketAddress( szHost, iPort );
 	if( !sock.connect( dstAddr ) )
 	{
 		std::list< std::istream* > chunks;
-		LPCSTR boundary = "---------------------------VIOSOWARPBLEND";
-		BOOL res = FALSE;
+		const char* boundary = "---------------------------VIOSOWARPBLEND";
+		bool res = false;
 		if( nullptr != content && !content->bad()/* && !file->eof() */ )
 		{
-			if( NULL == szMime || 0 == szMime[0] )
+			if( nullptr == szMime || 0 == szMime[0] )
 				szMime = "application/octet-stream";
 
 			std::stringstream* chunk = new std::stringstream();
@@ -1692,7 +1758,7 @@ BOOL SendHTTP( LPCSTR szHost, unsigned short iPort, LPCSTR szURI, LPCSTR szName,
 			chunks.push_back( chunk );
 			chunks.push_back( content );
 
-			if( NULL != szFileClass && 0 != szFileClass[0] )
+			if( nullptr != szFileClass && 0 != szFileClass[0] )
 			{
 				std::stringstream* chunk = new std::stringstream();
 				*chunk <<
@@ -1764,13 +1830,13 @@ BOOL SendHTTP( LPCSTR szHost, unsigned short iPort, LPCSTR szURI, LPCSTR szName,
 		delete[] sndBuf;
 
 		char lBuf[8192];
-		int nRead = (__int64)sock.recv( lBuf, 8192, INFINITETIMEOUT );
+		int nRead = (__int64_t)sock.recv( lBuf, 8192, INFINITETIMEOUT );
 		if( nRead > 0 )
 		{
 			if( nullptr != response )
 				response->assign( lBuf, (size_t)nRead );
 			if( 400 > ParseStdResponseCode( lBuf, nRead ) )
-				res = TRUE;
+				res = true;
 
 		}
 
@@ -1783,6 +1849,6 @@ BOOL SendHTTP( LPCSTR szHost, unsigned short iPort, LPCSTR szURI, LPCSTR szName,
 		return res;
 
 	}
-	return FALSE;
+	return false;
 }
 
