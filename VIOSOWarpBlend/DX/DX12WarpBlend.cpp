@@ -145,6 +145,7 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{
 			// gather viewport information
 			ID3D12Resource* pRV = NULL;
+			/*
 			m_cl->O
 			//m_dc->OMGetRenderTargets( 1, &pVV, NULL );
 			hr = E_FAIL;
@@ -180,7 +181,7 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				return VWB_ERROR_GENERIC;
 			}
 
-
+*/
 		}
 		VWB_WarpBlend& wb = *wbs[calibIndex];
 
