@@ -13,6 +13,12 @@
 
 #include "DXSample.h"
 
+#ifdef USE_VIOSO_API
+#define VIOSOWARPBLEND_DYNAMIC_DEFINE
+#include "../../Include/VIOSOWarpBlend.h"
+#include <memory>
+#endif
+
 using namespace DirectX;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
@@ -69,6 +75,10 @@ private:
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
+
+    #ifdef USE_VIOSO_API
+    VWB_Warper* m_warper;	               // the VIOSO warper
+    #endif
 
     void LoadPipeline();
     void LoadAssets();

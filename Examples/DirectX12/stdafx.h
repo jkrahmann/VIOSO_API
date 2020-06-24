@@ -31,5 +31,7 @@
 #include <vector>
 #include <wrl.h>
 #include <shellapi.h>
+#include <tchar.h>
+
 
 #define USE_VIOSO_API

@@ -11,15 +11,12 @@
 
 #include "stdafx.h"
 #include "D3D12HelloTexture.h"
-#include <tchar.h>
 
 #ifdef USE_VIOSO_API
-#define VIOSOWARPBLEND_DYNAMIC_DEFINE_IMPLEMENT
+#define VIOSOWARPBLEND_DYNAMIC_IMPLEMENT
 #include "../../Include/VIOSOWarpBlend.h"
-
 LPCTSTR s_configFile = _T( "VIOSOWarpBlend.ini" );
 LPCTSTR s_channel = _T( "IGX" );
-VWB_Warper* warper = NULL;	               // the VIOSO warper
 #endif //def USE_VIOSO_API
 
 D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name) :
@@ -42,8 +39,8 @@ void D3D12HelloTexture::OnInit()
 	if(
 		VWB_Create &&
 		VWB_Init &&
-		VWB_ERROR_NONE == VWB_Create( m_commandQueue.Get(), s_configFile, s_channel, &warper, 0, NULL ) &&
-		VWB_ERROR_NONE == VWB_Init( warper )
+		VWB_ERROR_NONE == VWB_Create( m_commandList.Get(), s_configFile, s_channel, &m_warper, 0, NULL ) &&
+		VWB_ERROR_NONE == VWB_Init( m_warper )
 		)
 	{
 	}
@@ -477,6 +474,10 @@ void D3D12HelloTexture::PopulateCommandList()
 
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+    #ifdef USE_VIOSO_API
+    VWB_render( m_warper, NULL, VWB_STATEMASK_DEFAULT );
+    #endif
 
     ThrowIfFailed(m_commandList->Close());
 }

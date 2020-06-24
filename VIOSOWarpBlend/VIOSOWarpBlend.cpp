@@ -272,12 +272,12 @@ VWB_ERROR VWB_CreateA( void* pDxDevice, char const* szConfigFile, char const* sz
 				IUnknown* pUK2 = NULL;
 				// destinguish between DX flavours
 				do {
-					if( SUCCEEDED( pUK->QueryInterface( __uuidof( ID3D12CommandQueue ), (void**)&pUK2 ) ) )
+					if( SUCCEEDED( pUK->QueryInterface( __uuidof( ID3D12CommandList ), (void**)&pUK2 ) ) )
 					{
 						pUK2->Release();
 						if( pUK == pUK2 )
 						{
-							*ppWarper = new DX12WarpBlend( (ID3D12CommandQueue*)pDxDevice );
+							*ppWarper = new DX12WarpBlend( (ID3D12CommandList*)pDxDevice );
 							break;
 						}
 					}

@@ -767,7 +767,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 	// Create Our OpenGL Window
 	if (!CreateGLWindow("NeHe's Solid Object Tutorial",1280,800,32,fullscreen))
 	{
-		return 0;									// Quit If Window Was Not Created
+		return 0;									// Quit If Window Was Not Created	
 	}
 
 #ifdef USE_VIOSO_API

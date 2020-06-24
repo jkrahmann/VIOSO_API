@@ -101,8 +101,11 @@ VWB_ERROR LoadVWF( VWB_WarpBlendSet& set, char const* path )
 							{
 								fseek( f, (long)pWB->header.szHdr - (long)sh, SEEK_CUR );
 								int nRecords = pWB->header.width * pWB->header.height;
-								if( 0 != nRecords && 0 != pWB->header.hMonitor )
+								if( 0 != nRecords )
 								{
+									if( 0 == pWB->header.hMonitor )
+										pWB->header.hMonitor = VWB_uint( VWB_word( pWB->header.offsetX ) ) + ( VWB_uint( VWB_word( pWB->header.offsetY ) ) << 16 );
+
 									strcpy( pWB->path, pp );
 									pWB->pWarp = new VWB_WarpRecord[nRecords];
 									if( nRecords == fread_s( pWB->pWarp, nRecords * sizeof( VWB_WarpRecord ), sizeof( VWB_WarpRecord ), nRecords, f ) )
@@ -835,8 +838,10 @@ VWB_ERROR ScanVWF( char const* path, VWB_WarpBlendHeaderSet* set )
 							{
 								fseek( f, (long)pWBH->header.szHdr - (long)sh, SEEK_CUR );
 								int nRecords = pWBH->header.width * pWBH->header.height;
-								if( 0 != nRecords && 0 != pWBH->header.hMonitor )
+								if( 0 != nRecords )
 								{
+									if( 0 == pWBH->header.hMonitor )
+										pWBH->header.hMonitor = VWB_uint( VWB_word( pWBH->header.offsetX ) ) + ( VWB_uint( VWB_word( pWBH->header.offsetY ) ) << 16 );
 									strcpy( pWBH->path, pp );
 									if( 0 == fseek( f, nRecords * sizeof( VWB_WarpRecord ), SEEK_CUR ) )
 									{
