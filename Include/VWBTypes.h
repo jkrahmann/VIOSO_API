@@ -60,6 +60,7 @@ typedef enum VWB_STATEMASK
 	VWB_STATEMASK_SHADER_RESOURCE = 0x00000100, // shader resource 0 to 2 or texture register t0 to t2
 	VWB_STATEMASK_SAMPLER = 0x00001000, // Sampler state resource 0 to 2 in DX10 and later, DX9 sampler state is captured in state block
 	VWB_STATEMASK_CLEARBACKBUFFER = 0x00002000, // set to clear backbuffer
+	VWB_STATEMASK_COPYBUFFER = 0x00004000, // DX12 only, do a copy of the provided buffer; you would do this, if you provide current backbuffer as input
 	VWB_STATEMASK_ALL = 0x1FFFFFFF, // All
 	VWB_STATEMASK_DEFAULT = VWB_STATEMASK_VERTEX_BUFFER | VWB_STATEMASK_INPUT_LAYOUT | VWB_STATEMASK_PRIMITIVE_TOPOLOGY | VWB_STATEMASK_RASTERSTATE
 } VWB_STATEMASK;

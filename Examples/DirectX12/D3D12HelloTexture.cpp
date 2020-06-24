@@ -476,7 +476,7 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     #ifdef USE_VIOSO_API
-    VWB_render( m_warper, NULL, VWB_STATEMASK_DEFAULT );
+    VWB_render( m_warper, NULL, VWB_STATEMASK_DEFAULT|VWB_STATEMASK_COPYBUFFER );
     #endif
 
     ThrowIfFailed(m_commandList->Close());

@@ -3,19 +3,19 @@
 #include "atlbase.h"
 #pragma comment( lib, "d3d12.lib" )
 
-DX12WarpBlend::DX12WarpBlend( ID3D12CommandList* pCQ )
+DX12WarpBlend::DX12WarpBlend( ID3D12GraphicsCommandList* pCL )
 : DXWarpBlend()
-, m_cq( NULL )
+, m_cl( NULL )
 , m_device( NULL )
 , m_srvHeap( NULL )
 , m_pipState( NULL )
 , m_rootSignature( NULL )
 {
-	if( NULL == pCQ )
+	if( NULL == pCL )
 		throw( VWB_ERROR_PARAMETER );
-	if( FAILED( pCQ->QueryInterface( &m_cq ) ) )
+	if( FAILED( pCL->QueryInterface( &m_cl ) ) )
 		throw( VWB_ERROR_PARAMETER );
-	if( FAILED( m_cq->GetDevice( __uuidof( m_device ), (void**)&m_device ) ) )
+	if( FAILED( m_cl->GetDevice( __uuidof( m_device ), (void**)&m_device ) ) )
 		throw( VWB_ERROR_PARAMETER );
 		m_type4cc = '21XD';
 }
@@ -25,7 +25,7 @@ DX12WarpBlend::~DX12WarpBlend(void)
 	SAFERELEASE( m_rootSignature );
 	SAFERELEASE( m_srvHeap );
 	SAFERELEASE( m_device );
-	SAFERELEASE( m_cq );
+	SAFERELEASE( m_cl );
 	logStr( 1, "INFO: DX11-Warper destroyed.\n" );
 }
 
@@ -145,7 +145,7 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{
 			// gather viewport information
 			ID3D12Resource* pRV = NULL;
-			m_cq->
+			m_cl->O
 			//m_dc->OMGetRenderTargets( 1, &pVV, NULL );
 			hr = E_FAIL;
 			if( pVV )
