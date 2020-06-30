@@ -124,8 +124,8 @@ calibIndex=0
 */
 
 	/** creates a new VIOSO Warp & Blend API instance
-	* @param [IN_OPT] pDxDevice  a pointer to a DirectX device for Direct3D 9 to 11; for Direct3D 12, you need to specify a pointer to a ID3D12CommandQueue, set to NULL for OpenGL, set to VWB_DUMMYDEVICE, to just hold the data to create a textured mesh.
-	* Supported: IDirect3DDevice9,IDirect3DDevice9Ex,ID3D10Device,ID3D10Device1,ID3D11Device,ID3D12CommandQueue (for ID3D12Device initialization)
+	* @param [IN_OPT] pDxDevice  a pointer to a DirectX device for Direct3D 9 to 11; for Direct3D 12, you need to specify a pointer to a ID3D12CommandList, set to NULL for OpenGL, set to VWB_DUMMYDEVICE, to just hold the data to create a textured mesh.
+	* Supported: IDirect3DDevice9,IDirect3DDevice9Ex,ID3D10Device,ID3D10Device1,ID3D11Device,ID3D12CommandList (for ID3D12Device initialization)
 	* @param [IN_OPT] szConfigFile  path to a .ini file containing settings, if NULL the default values are used
 	* @param [IN_OPT] szChannelName a section name to look for in .ini-file.
 	* @param [OUT] ppWarper this receives the warper
@@ -219,9 +219,13 @@ calibIndex=0
     /** render a warped and blended source texture into the current back buffer
 	* @remark for DirectX 9, call inside BeginScene/EndScene statements
 	* @param [IN]			pWarper	a valid warper
-    * @param [IN,OPT]		pSrc    the source texture, a IDirect3DTexture9* or a GLint texture index; if current backbuffer must be read, set to NULL in any DX mode or to -1 in OpenGL mode
+    * @param [IN,OPT]		pSrc    the source texture, a IDirect3DTexture9* or a GLint texture index; 
+	* if current backbuffer must be read, set to NULL in any DX mode except 12 or to -1 in OpenGL mode
+	* in case of directX 12 you need to provide the backbuffer as parameter and set VWB_STATEMASK_COPYBUFFER.
 	* @param [IN,OPT]		stateMask @see VWB_STATEMASK enumeration, default is 0 to restore usual stuff
-    * @return VWB_ERROR_NONE on success, VWB_ERROR_GENERIC otherwise */
+	* In D3D12 all flags except VWB_STATEMASK_COPYBUFFER and VWB_STATEMASK_CLEARBACKBUFFER are ignored.
+	* The application is required to set inputs and shader in each term anyway.
+	* @return VWB_ERROR_NONE on success, VWB_ERROR_GENERIC otherwise */
     VIOSOWARPBLEND_API( VWB_ERROR, VWB_render, ( VWB_Warper* pWarper, VWB_param src, VWB_uint stateMask ) );  
 
 	/** get info about .vwf, reads all warp headers

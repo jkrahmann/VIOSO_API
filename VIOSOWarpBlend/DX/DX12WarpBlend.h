@@ -22,8 +22,6 @@ protected:
 	//D3D11_VIEWPORT				m_vp;				// the viewport, if width and height is set, use it on begin of rendering
 	//HWND						m_focusWnd;			// the focus window handle
 
-	//ID3D11VertexShader*			m_VertexShader;
-	//ID3D11PixelShader*			m_PixelShader;
 	//ID3D11Buffer*				m_VertexBuffer;		// the 
 	//ID3D11Buffer*				m_VertexBufferModel; // the vertex buffer of a model
 	//ID3D11Buffer*				m_IndexBufferModel; // the index buffer to that vertex buffer of a model

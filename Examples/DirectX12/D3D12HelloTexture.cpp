@@ -16,7 +16,7 @@
 #define VIOSOWARPBLEND_DYNAMIC_IMPLEMENT
 #include "../../Include/VIOSOWarpBlend.h"
 LPCTSTR s_configFile = _T( "VIOSOWarpBlend.ini" );
-LPCTSTR s_channel = _T( "IGX" );
+LPCTSTR s_channel = _T( "IG1" );
 #endif //def USE_VIOSO_API
 
 D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name) :

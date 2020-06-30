@@ -63,7 +63,7 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			{
 				{
 					D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
-					1, 0, 0,
+					1, 1, 0,
 					D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC,
 					D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
 				},
@@ -84,7 +84,7 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				}
 			};
 
-			D3D12_STATIC_SAMPLER_DESC samplers[] = 
+			D3D12_STATIC_SAMPLER_DESC samplers[] =
 			{
 				{
 					D3D12_FILTER_MIN_MAG_MIP_POINT,
@@ -118,13 +118,13 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				}
 			};
 
-			D3D12_ROOT_SIGNATURE_DESC1 rsd = 
-			{ 
-				_countof( rootParameters ), 
-				rootParameters, 
-				_countof( samplers ), 
-				samplers, 
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT 
+			D3D12_ROOT_SIGNATURE_DESC1 rsd =
+			{
+				_countof( rootParameters ),
+				rootParameters,
+				_countof( samplers ),
+				samplers,
+				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 			};
 			D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 			rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
