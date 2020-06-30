@@ -1,0 +1,6 @@
+﻿  DX11Example.vcxproj -> D:\GIT\Precision\Libraries\VIOSOWarpBlend\Debug\DirectX11Example.exe
+  D:\GIT\Precision\Libraries\VIOSOWarpBlend\Examples\DirectX11
+  tar: Error opening archive: Failed to open '..\..\data\vioso3D.zip'
+  tar: Error opening archive: Failed to open '..\..\data\vioso2d.zip'
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppCommon.targets(149,5): error MSB3073: The command "call D:\GIT\Precision\Libraries\VIOSOWarpBlend\Examples\unzip_data.bat
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppCommon.targets(149,5): error MSB3073: :VCEnd" exited with code 1.

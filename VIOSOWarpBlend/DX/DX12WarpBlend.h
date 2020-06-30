@@ -10,9 +10,9 @@ public:
 protected:
 	ID3D12Device*				m_device;           // the d3d device
 	ID3D12DescriptorHeap*		m_srvHeap;			// the heap of shader resource views
-	ID3D12PipelineState*		m_pipState;
 	ID3D12GraphicsCommandList*	m_cl;				// the command list
 	ID3D12RootSignature*		m_rootSignature;    // the root signature
+	ID3D12PipelineState*		m_pipelineState;	// the pipeline
 	//ID3D11DeviceContext*		m_dc;				// the d3d devicecontext
 	//ID3D11ShaderResourceView*	m_texWarp;          // the warp lookup texture, in case of 3D it contains the real world 3D coordinates of the screen
 	//ID3D11ShaderResourceView*	m_texBlend;         // the blend lookup texture view
