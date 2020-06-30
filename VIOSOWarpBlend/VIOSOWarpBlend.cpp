@@ -2,9 +2,11 @@
 #include "DX/DX9WarpBlend.h"
 #include "DX/DX9EXWarpBlend.h"
 #include "DX/DX11WarpBlend.h"
-#include "DX/DX12WarpBlend.h"
 #include "DX/DX10WarpBlend.h"
 #include "Net.h"
+#ifndef VWB_WIN7_COMPAT
+#include "DX/DX12WarpBlend.h"
+#endif //ndef VWB_WIN7COMPAT
 #pragma comment( lib, "shlwapi" )
 #include <shlwapi.h>
 #else
@@ -272,6 +274,7 @@ VWB_ERROR VWB_CreateA( void* pDxDevice, char const* szConfigFile, char const* sz
 				IUnknown* pUK2 = NULL;
 				// destinguish between DX flavours
 				do {
+				#ifndef VWB_WIN7_COMPAT
 					if( SUCCEEDED( pUK->QueryInterface( __uuidof( ID3D12GraphicsCommandList ), (void**)&pUK2 ) ) )
 					{
 						pUK2->Release();
@@ -281,6 +284,7 @@ VWB_ERROR VWB_CreateA( void* pDxDevice, char const* szConfigFile, char const* sz
 							break;
 						}
 					}
+				#endif //ndef VWB_WIN7_COMPAT
 
 					if( SUCCEEDED( pUK->QueryInterface( __uuidof( ID3D11Device ), (void**)&pUK2 ) ) )
 					{

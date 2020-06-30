@@ -1,3 +1,4 @@
+#ifndef VWB_WIN7_COMPAT
 #include "DX12WarpBlend.h"
 #include "pixelshader.h"
 #include "atlbase.h"
@@ -204,3 +205,4 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	//}
 	return SUCCEEDED( res ) ? VWB_ERROR_NONE : VWB_ERROR_GENERIC;
 }
+#endif //ndef VWB_WIN7_COMPAT
