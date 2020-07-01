@@ -1,6 +1,5 @@
 #ifndef VWB_WIN7_COMPAT
 #include "DX12WarpBlend.h"
-#endif //ndef VWB_WIN7_COMPAT
 
 #include "pixelshader.h"
 #include "atlbase.h"
@@ -218,7 +217,6 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			}
 
 			std::string pixelShader = "PS"; // or "TST"
-			#if 1
 			if( m_bDynamicEye )
 			{
 				pixelShader = "PSWB3D";
