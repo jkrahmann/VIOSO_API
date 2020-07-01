@@ -13,6 +13,8 @@ protected:
 	ID3D12GraphicsCommandList*	m_cl;				// the command list
 	ID3D12RootSignature*		m_rootSignature;    // the root signature
 	ID3D12PipelineState*		m_pipelineState;	// the pipeline
+	ID3D12Resource*				m_vertexBuffer;		// the vertex buffer
+	D3D12_VERTEX_BUFFER_VIEW    m_vertexBufferView;    // the vertex buffer view
 	//ID3D11DeviceContext*		m_dc;				// the d3d devicecontext
 	//ID3D11ShaderResourceView*	m_texWarp;          // the warp lookup texture, in case of 3D it contains the real world 3D coordinates of the screen
 	//ID3D11ShaderResourceView*	m_texBlend;         // the blend lookup texture view

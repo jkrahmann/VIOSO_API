@@ -13,6 +13,8 @@ DX12WarpBlend::DX12WarpBlend( ID3D12GraphicsCommandList* pCL )
 , m_srvHeap( NULL )
 , m_rootSignature( NULL )
 , m_pipelineState( NULL )
+, m_vertexBuffer( NULL )
+, m_vertexBufferView( { 0, 0, 0 } )
 {
 	if( NULL == pCL )
 		throw( VWB_ERROR_PARAMETER );
@@ -25,6 +27,8 @@ DX12WarpBlend::DX12WarpBlend( ID3D12GraphicsCommandList* pCL )
 
 DX12WarpBlend::~DX12WarpBlend(void)
 {
+	SAFERELEASE( m_vertexBuffer );
+	SAFERELEASE( m_pipelineState );
 	SAFERELEASE( m_rootSignature );
 	SAFERELEASE( m_srvHeap );
 	SAFERELEASE( m_device );
@@ -283,6 +287,45 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				logStr( 0, "ERROR: Could not create graphics pipeline: %08X\n", hr );
 				throw VWB_ERROR_SHADER;
 			}
+		}
+		// create and fill vertex buffer
+		{
+			FLOAT dx = 0.5f / m_sizeMap.cx;
+			FLOAT dy = 0.5f / m_sizeMap.cy;
+			SimpleVertex quad[] = {
+				{ {  1.0f + dx,  1.0f + dy, 0.5f }, { 1.0f, 0.0f } },
+				{ {  1.0f + dx, -1.0f - dy, 0.5f }, { 1.0f, 1.0f } },
+				{ { -1.0f - dx, -1.0f - dy, 0.5f }, { 0.0f, 1.0f } },
+				{ { -1.0f - dx, -1.0f - dy, 0.5f }, { 0.0f, 1.0f } },
+				{ { -1.0f - dx,  1.0f + dy, 0.5f }, { 0.0f, 0.0f } },
+				{ {  1.0f + dx,  1.0f + dy, 0.5f }, { 1.0f, 0.0f } },
+			};
+			const D3D12_HEAP_PROPERTIES hp = { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 };
+			const D3D12_RESOURCE_DESC rd = { D3D12_RESOURCE_DIMENSION_BUFFER , 0, sizeof( quad ), 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1,0}, D3D12_TEXTURE_LAYOUT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE };
+			hr = m_device->CreateCommittedResource(
+				&hp,
+				D3D12_HEAP_FLAG_NONE,
+				&rd,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS( &m_vertexBuffer )
+			);
+			// Copy the triangle data to the vertex buffer.
+			UINT8* pVertexDataBegin;
+			D3D12_RANGE readRange = { 0, 0 };        // We do not intend to read from this resource on the CPU.
+			hr = m_vertexBuffer->Map( 0, &readRange, reinterpret_cast<void**>( &pVertexDataBegin ) );
+			memcpy( pVertexDataBegin, quad, sizeof( quad ) );
+			m_vertexBuffer->Unmap( 0, nullptr );
+
+			// Initialize the vertex buffer view.
+			m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+			m_vertexBufferView.StrideInBytes = sizeof( SimpleVertex );
+			m_vertexBufferView.SizeInBytes = sizeof( quad );
+		}
+
+		// create and fill textures
+		{
+
 		}
 		/*
 		D3D11_BUFFER_DESC bd = { 0 };
