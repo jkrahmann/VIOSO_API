@@ -199,11 +199,11 @@ static char s_pixelShaderDX2a[] ="\n"
 "}                                               \n";
 
 static char s_pixelShaderDX4[] = "\n"
-"Texture2D texContent : register(t0);            \n"
-"Texture2D texWarp : register(t1);               \n"
-"Texture2D texBlend : register(t2);              \n"
-"Texture2D texCur : register(t3);              \n"
-"Texture2D texBlack : register(t4);\n"			// this is the black level uplift alias beta texture
+"Texture2D texWarp : register(t0);               \n"
+"Texture2D texBlend : register(t1);              \n"
+"Texture2D texCur : register(t2);              \n"
+"Texture2D texBlack : register(t3);\n"			// this is the black level uplift alias beta texture
+"Texture2D texContent : register(t4);            \n"
 "                                                \n"
 "cbuffer ConstantBuffer : register( b0 )                     \n"
 "{																\n"
@@ -419,11 +419,11 @@ static char s_pixelShaderDX4[] = "\n"
 "}                                               \n";
 
 static char s_pixelShaderDX4_vFlip[] = "\n"
-"Texture2D texContent : register(t0);            \n"
-"Texture2D texWarp : register(t1);               \n"
-"Texture2D texBlend : register(t2);              \n"
-"Texture2D texCur : register(t3);              \n"
-"Texture2D texBlack : register(t4);\n"			// this is the black level uplift alias beta texture
+"Texture2D texWarp : register(t0);               \n"
+"Texture2D texBlend : register(t1);              \n"
+"Texture2D texCur : register(t2);              \n"
+"Texture2D texBlack : register(t3);\n"			// this is the black level uplift alias beta texture
+"Texture2D texContent : register(t4);            \n"
 "                                                \n"
 "cbuffer ConstantBuffer : register( b0 )                     \n"
 "{																\n"

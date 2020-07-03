@@ -589,8 +589,8 @@ VWB_ERROR DX10WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	m_device->RSSetState( m_RasterState );
 	m_device->PSSetShader( m_PixelShader );
 	m_device->PSSetConstantBuffers( 0, 1, &m_ConstantBuffer );
-	ID3D10ShaderResourceView* ppRes[] = { m_texBB ,m_texWarp, m_texBlend, nullptr, m_texBlack };
-	ID3D10SamplerState* ppSam[] = { m_SSLin ,m_SSClamp, m_SSLin, m_SSLin, m_SSLin };
+	ID3D10ShaderResourceView* ppRes[] = { m_texWarp, m_texBlend, nullptr, m_texBlack, m_texBB };
+	ID3D10SamplerState* ppSam[] = { m_SSClamp, m_SSLin, m_SSLin, m_SSLin, m_SSLin };
 	m_device->PSSetShaderResources( 0, ARRAYSIZE(ppRes), ppRes );
 	m_device->PSSetSamplers( 0, 5, ppSam );
 

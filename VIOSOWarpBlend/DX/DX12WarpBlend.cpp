@@ -298,12 +298,20 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				{ { -1.0f - dx,  1.0f + dy, 0.5f }, { 0.0f, 0.0f } },
 				{ {  1.0f + dx,  1.0f + dy, 0.5f }, { 1.0f, 0.0f } },
 			};
-			const D3D12_HEAP_PROPERTIES hp = { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 };
-			const D3D12_RESOURCE_DESC rd = { D3D12_RESOURCE_DIMENSION_BUFFER , 0, sizeof( quad ), 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1,0}, D3D12_TEXTURE_LAYOUT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE };
 			hr = m_device->CreateCommittedResource(
-				&hp,
+				&D3D12_HEAP_PROPERTIES( { 
+					D3D12_HEAP_TYPE_UPLOAD, 
+					D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+					D3D12_MEMORY_POOL_UNKNOWN,
+					1, 1 } ),
 				D3D12_HEAP_FLAG_NONE,
-				&rd,
+				&D3D12_RESOURCE_DESC( {
+					D3D12_RESOURCE_DIMENSION_BUFFER,
+					0, sizeof( quad ), 1, 1, 1,
+					DXGI_FORMAT_UNKNOWN,
+					{1,0},
+					D3D12_TEXTURE_LAYOUT_UNKNOWN,
+					D3D12_RESOURCE_FLAG_NONE }),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				IID_PPV_ARGS( &m_vertexBuffer )
@@ -323,90 +331,93 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 
 		// create and fill textures
 		{
+			VWB_WarpBlend& wb = *wbs[calibIndex];
 
-		}
-		/*
-		D3D11_BUFFER_DESC bd = { 0 };
-		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd.ByteWidth = sizeof( quad );
-		D3D11_SUBRESOURCE_DATA data = { quad, 0, 0 };
-		hr = m_device->CreateBuffer( &bd, &data, &m_VertexBuffer );
+			// the warp texture
+			// it is RGBA32, we need RG16U in case of 2D and RGB32F in case of 3D
+			D3D12_RESOURCE_DESC textureDesc = {
+				D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+				0, //UINT64 Alignment;
+				(UINT64)m_sizeMap.cx,//UINT Width;
+				(UINT64)m_sizeMap.cy,//UINT Height;
+				1,//UINT16 DepthOrArraySize;
+				1,//UINT16 MipLevels;
+				0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? DXGI_FORMAT_R32G32B32_FLOAT : DXGI_FORMAT_R16G16_UNORM,//DXGI_FORMAT Format;
+				{1,0},//DXGI_SAMPLE_DESC SampleDesc;
+				D3D12_TEXTURE_LAYOUT_UNKNOWN,// D3D12_TEXTURE_LAYOUT Layout;
+				D3D12_RESOURCE_FLAG_NONE,// D3D12_RESOURCE_FLAGS Flags;
+			};
 
-		if( FAILED( hr ) )
-		{
-			logStr( 0, "ERROR: Could not create constant buffer: %08X\n", hr );
-			throw VWB_ERROR_GENERIC;
-		}
+			hr = m_device->CreateCommittedResource(
+				&D3D12_HEAP_PROPERTIES( { D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 } ),
+				D3D12_HEAP_FLAG_NONE,
+				&textureDesc,
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS( &m_texWarp ) );
 
-		// Turn off culling, so we see the front and back of the triangle
-		D3D11_RASTERIZER_DESC rasterDesc;
-		rasterDesc.AntialiasedLineEnable = false;
-		rasterDesc.CullMode = D3D11_CULL_NONE;
-		rasterDesc.DepthBias = 0;
-		rasterDesc.DepthBiasClamp = 1.0f;
-		rasterDesc.DepthClipEnable = false;
-		rasterDesc.FillMode = D3D11_FILL_SOLID;
-		rasterDesc.FrontCounterClockwise = true;
-		rasterDesc.MultisampleEnable = false;
-		rasterDesc.ScissorEnable = false;
-		rasterDesc.SlopeScaledDepthBias = 0.0f;
-		hr = m_device->CreateRasterizerState( &rasterDesc, &m_RasterState );
-		if( FAILED( hr ) )
-		{
-			logStr( 0, "ERROR: Could not create raster state: %08X\n", hr );
-			throw VWB_ERROR_GENERIC;
-		}
+			UINT64 uploadBufferSize = 0;
+			m_device->GetCopyableFootprints( &textureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &uploadBufferSize );
+			CComPtr<ID3D12Resource> uploadHeapTex;
 
-		D3D11_DEPTH_STENCIL_DESC dsdesc;
-		memset( &dsdesc, 0, sizeof( dsdesc ) );
-		dsdesc.DepthEnable = FALSE;
-		dsdesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-		dsdesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
-		hr = m_device->CreateDepthStencilState( &dsdesc, &m_DepthState );
-		if( FAILED( hr ) )
-		{
-			logStr( 0, "ERROR: Could not create depth state: %08X\n", hr );
-			throw VWB_ERROR_GENERIC;
-		}
+			// Create the GPU upload buffer.
+			hr = m_device->CreateCommittedResource(
+				&D3D12_HEAP_PROPERTIES( { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 } ),
+				D3D12_HEAP_FLAG_NONE,
+				&D3D12_RESOURCE_DESC( { D3D12_RESOURCE_DIMENSION_BUFFER, 0, uploadBufferSize, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1,0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR, D3D12_RESOURCE_FLAG_NONE } ),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS( &uploadHeapTex ) );
 
-		D3D11_BLEND_DESC bdesc;
-		memset( &bdesc, 0, sizeof( bdesc ) );
-		bdesc.RenderTarget[0].BlendEnable = FALSE;
-		bdesc.RenderTarget[0].RenderTargetWriteMask = 0xF;
-		hr = m_device->CreateBlendState( &bdesc, &m_BlendState );
-		if( FAILED( hr ) )
-		{
-			logStr( 0, "ERROR: Could not create blend state: %08X\n", hr );
-			throw VWB_ERROR_GENERIC;
-		}
+			D3D12_SUBRESOURCE_DATA dataWarp;
+			if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
+			{
+				UINT sz = 3 * m_sizeMap.cx;
+				dataWarp.RowPitch = sizeof( float ) * sz;
+				sz *= m_sizeMap.cy;
+				dataWarp.SlicePitch = sizeof( float ) * sz;
+				dataWarp.pData = new float[sz];
+				float* d = (float*)dataWarp.pData;
+				for( const VWB_WarpRecord* s = wb.pWarp, *sE = wb.pWarp + (ptrdiff_t)m_sizeMap.cx * (ptrdiff_t)m_sizeMap.cy; s != sE; d += 3, s++ )
+				{
+					d[0] = s->x;
+					d[1] = s->y;
+					d[2] = s->z;
+				}
+			}
+			else
+			{
+				UINT sz = 2 * m_sizeMap.cx;
+				dataWarp.RowPitch = sizeof( unsigned short ) * sz;
+				sz *= m_sizeMap.cy;
+				dataWarp.SlicePitch = sizeof( unsigned short ) * sz;
+				dataWarp.pData = new unsigned short[sz];
+				unsigned short* d = (unsigned short*)dataWarp.pData;
+				for( const VWB_WarpRecord* s = wb.pWarp, *sE = wb.pWarp + (ptrdiff_t)m_sizeMap.cx * (ptrdiff_t)m_sizeMap.cy; s != sE; d += 2, s++ )
+				{
+					d[0] = (unsigned short)( 65535.0f * MIN( 1.0f, MAX( 0.0f, s->x ) ) );
+					d[1] = (unsigned short)( 65535.0f * MIN( 1.0f, MAX( 0.0f, s->y ) ) );
+				}
+			}
 
-		// Compile the pixel shader
-		std::string pixelShader = "PS"; // or "TST"
-		#if 1
-		if( m_bDynamicEye )
-		{
-			pixelShader = "PSWB3D";
-		}
-		else
-		{
-			pixelShader = "PSWB";
-		}
-		if( bBicubic )
-			pixelShader.append( "BC" );
-		#endif
-		ID3DBlob* pPSBlob = NULL;
-		SAFERELEASE( pErrBlob );
 
-		// Create the pixel shader
-		hr = m_device->CreatePixelShader( pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &m_PixelShader );
-		pPSBlob->Release();
-		if( FAILED( hr ) )
-		{
-			logStr( 0, "ERROR: The pixel shader cannot be created: %08X\n", hr );
-			throw VWB_ERROR_SHADER;
+			//UpdateSubresources( m_cl, m_texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData );
+			//m_commandList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( m_texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE ) );
+
+			// Describe and create a SRV for the texture.
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = textureDesc.Format;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels = 1;
+			m_device->CreateShaderResourceView( m_texWarp, &srvDesc, m_srvHeap->GetCPUDescriptorHandleForHeapStart() );
+
 		}
 
 		// Create the constant buffer
+		{
+		}
+		/*
 		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 		bd.ByteWidth = sizeof( ConstantBuffer );
 		hr = m_device->CreateBuffer( &bd, NULL, &m_ConstantBuffer );
