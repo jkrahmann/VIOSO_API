@@ -77,7 +77,7 @@ GetIniFloat(char const* szSection, char const* szKey, VWB_float fDefault, char c
 /// @param [IN] key a key name
 /// @param [IN] iDefault the default value
 /// @param [IN] szConfigFile the path to the ini file
-/// @return the read value or the value given in fDefault
+/// @return f in case of success; this includes , NULL otherwise
 /// if fDefault is NULL, an empty matrix (all 0.0f) is returned
 VWB_float*
 GetIniMat(char const* szSection, char const* szKey, int dimX, int dimY, VWB_float const* fDefault, VWB_float* f, char const* szConfigFile);

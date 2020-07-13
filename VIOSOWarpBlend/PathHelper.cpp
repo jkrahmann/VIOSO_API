@@ -270,20 +270,21 @@ VWB_float* GetIniMat(char const* szSection, char const* szKey, int dimX, int dim
 	char s[32678] = { 0 };
 	GetIniString(szSection, szKey, "", s, 32678, szConfigFile);
 	char* pS = s;
+	if( *pS != '[' )
+		return NULL;
+	pS++;
 	int o = 0;
 	int oE = dimX * dimY;
-	for (; 1 == sscanf_s(pS, "[%f", &f[o]) && o != oE; o++)
+	for (; 1 == sscanf_s(pS, "%f", &f[o]) && o != oE; o++)
 	{
-		char* pFS = strchr(pS, ',');
-		if (pFS)
-			pS = pFS;
-		else if (pFS = strchr(pS, ';'))
-			pS = pFS;
+		char* pFS;
+		if ( (pFS = strchr( pS, ',' )) || ( pFS = strchr( pS, ';' ) ) || ( pFS = strchr( pS, ']' ) ) )
+			pS = pFS + 1;
 		else
 			break;
 	}
-	if (oE != o)
-		return NULL;
+	if (oE == o)
+		return f;
 	if (NULL != fDefault)
 	{
 		memcpy(f, fDefault, sizeof(VWB_float) * dimX * dimY);

@@ -1226,9 +1226,9 @@ void VWB_Warper_base::getClip( VWB_VEC3f const& e, VWB_float * pClip )
 	//VWB_float dd = nearDist / ( screenDist -e.z );
 	VWB_float dd = nearDist / ( screenDist + ( m_bRH ? e.z : -e.z ) );
 	pClip[0] = ( m_viewSizes[0] + e.x ) * dd;
-	pClip[1] = ( m_viewSizes[1] + e.y ) * dd;
+	pClip[1] = ( m_viewSizes[3] + e.y ) * dd;
 	pClip[2] = ( m_viewSizes[2] - e.x ) * dd;
-	pClip[3] = ( m_viewSizes[3] - e.y ) * dd;
+	pClip[3] = ( m_viewSizes[1] - e.y ) * dd;
 	pClip[4] = nearDist;
 	pClip[5] = farDist;
 }
