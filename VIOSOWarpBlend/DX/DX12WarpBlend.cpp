@@ -5,21 +5,22 @@
 #include "atlbase.h"
 #pragma comment( lib, "d3d12.lib" )
 
-DX12WarpBlend::DX12WarpBlend( ID3D12GraphicsCommandList* pCL )
+DX12WarpBlend::DX12WarpBlend( ID3D12CommandQueue* pCQ )
 : DXWarpBlend()
-, m_cl( NULL )
+, m_cq( NULL )
 , m_device( NULL )
+, m_cl( NULL )
 , m_srvHeap( NULL )
 , m_rootSignature( NULL )
 , m_pipelineState( NULL )
 , m_vertexBuffer( NULL )
 , m_vertexBufferView( { 0, 0, 0 } )
 {
-	if( NULL == pCL )
+	if( NULL == pCQ )
 		throw( VWB_ERROR_PARAMETER );
-	if( FAILED( pCL->QueryInterface( &m_cl ) ) )
+	if( FAILED( pCQ->QueryInterface( &m_cq ) ) )
 		throw( VWB_ERROR_PARAMETER );
-	if( FAILED( m_cl->GetDevice( __uuidof( m_device ), (void**)&m_device ) ) )
+	if( FAILED( m_cq->GetDevice( IID_PPV_ARGS( &m_device  ) ) ) )
 		throw( VWB_ERROR_PARAMETER );
 		m_type4cc = '21XD';
 }

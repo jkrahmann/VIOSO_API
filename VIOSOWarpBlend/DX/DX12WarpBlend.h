@@ -8,8 +8,10 @@ class DX12WarpBlend : public DXWarpBlend
 public:
 
 protected:
+	ID3D12CommandQueue*			m_cq;				// the command queue
 	ID3D12Device*				m_device;           // the d3d device
 	ID3D12DescriptorHeap*		m_srvHeap;			// the heap of shader resource views
+	ID3D12CommandAllocator*		m_ca;               // the command allocator
 	ID3D12GraphicsCommandList*	m_cl;				// the command list
 	ID3D12RootSignature*		m_rootSignature;    // the root signature
 	ID3D12PipelineState*		m_pipelineState;	// the pipeline
@@ -40,7 +42,7 @@ protected:
 
 public:
 	///< the constructor
-	DX12WarpBlend( ID3D12GraphicsCommandList* pCL );
+	DX12WarpBlend( ID3D12CommandQueue* pCQ );
 
     ///< the destructor
 	virtual ~DX12WarpBlend();
