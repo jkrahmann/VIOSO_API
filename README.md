@@ -65,6 +65,8 @@ we can fill every pixel with content.
 Here we define the rectangle. We do that in the familiar way of defining a standard frustum. The only additional information s the 
 distance, where the screen will be (screen). These values come from a configuraton file or can be entered in settings.
 Example .ini file (comments are actually not allowed there, remove them before use!!):
+
+```
 ; this is where values for every channel go...
 [default]
 logLevel=1							;log level, 0 only fatal errors, 1 only errors and important info, 2 normal log, but guaranteed no info logging in render and frustum methods, 3 verbose debug log, defaults to 0
@@ -110,3 +112,4 @@ screen=3.000000
 calibFile=..\Res\Calib_150930_1.vwf
 calibIndex=0
 ;[channel 2] next channel, if you are using this .ini for more than one channel
+```
