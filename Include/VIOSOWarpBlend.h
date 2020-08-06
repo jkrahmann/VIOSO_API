@@ -124,8 +124,8 @@ calibIndex=0
 */
 
 	/** creates a new VIOSO Warp & Blend API instance
-	* @param [IN_OPT] pDxDevice  a pointer to a DirectX device for Direct3D 9 to 11; for Direct3D 12, you need to specify a pointer to a ID3D12CommandList, set to NULL for OpenGL, set to VWB_DUMMYDEVICE, to just hold the data to create a textured mesh.
-	* Supported: IDirect3DDevice9,IDirect3DDevice9Ex,ID3D10Device,ID3D10Device1,ID3D11Device,ID3D12CommandList (for ID3D12Device initialization)
+	* @param [IN_OPT] pDxDevice  a pointer to a DirectX device for Direct3D 9 to 11; for Direct3D 12, you need to specify a pointer to a ID3D12CommandQueue, set to NULL for OpenGL, set to VWB_DUMMYDEVICE, to just hold the data to create a textured mesh.
+	* Supported: IDirect3DDevice9,IDirect3DDevice9Ex,ID3D10Device,ID3D10Device1,ID3D11Device,ID3D12CommandQueue (for ID3D12Device initialization)
 	* @param [IN_OPT] szConfigFile  path to a .ini file containing settings, if NULL the default values are used
 	* @param [IN_OPT] szChannelName a section name to look for in .ini-file.
 	* @param [OUT] ppWarper this receives the warper

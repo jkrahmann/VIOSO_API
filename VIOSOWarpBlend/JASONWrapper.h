@@ -293,6 +293,7 @@ public:
 			}
 			catch( std::exception& e )
 			{
+				( e );
 				return false;
 			}
 			return true;
@@ -380,6 +381,7 @@ public:
 			}
 			catch( std::exception& e )
 			{
+				( e );
 			}
 			return ss;
 		};

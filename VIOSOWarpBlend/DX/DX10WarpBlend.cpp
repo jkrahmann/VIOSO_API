@@ -364,6 +364,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			FLT_MAX, //FLOAT MaxLOD;
 		};
 		m_device->CreateSamplerState( &descSam, &m_SSLin );
+		descSam.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
 		descSam.AddressU = descSam.AddressV = descSam.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
 		m_device->CreateSamplerState( &descSam, &m_SSClamp );
 

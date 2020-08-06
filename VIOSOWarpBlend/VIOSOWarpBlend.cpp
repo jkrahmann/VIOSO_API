@@ -1354,6 +1354,8 @@ VWB_ERROR VWB_Warper_base::AutoView( VWB_WarpBlend const& wb )
 	VWB_VEC3d cL = M * c; // centre in local coordinates
 	screenDist = VWB_float( cL.z ); // eye to plane distance
 
+	logStr( 1, "View: [%.6f, %.6f, %.6f, %.6f; %.6f, %.6f, %.6f, %.6f; %.6f, %.6f, %.6f, %.6f; %.6f, %.6f, %.6f, %.6f]\n",
+			M._11, M._12, M._13, 0, M._21, M._22, M._23, 0, M._31, M._32, M._33, 0, 0, 0, 0, 1 );
 	// getting rotation angles from local coords in global 
 	if( m_bRH )
 	{

@@ -61,13 +61,14 @@ bool SaveTex( LPCSTR path, ID3D11Device* dev, ID3D11DeviceContext* dc, ID3D11Tex
 				DXGI_FORMAT_R8G8B8A8_SINT == desc.Format
 				)
 			{
+				const LONG pitch = 4 * desc.Width;
 				BITMAPINFOHEADER hdr = { 0 };
 				hdr.biSize = sizeof( hdr );
 				hdr.biWidth = desc.Width;
 				hdr.biHeight = -LONG( desc.Height );
 				hdr.biPlanes = 1;
 				hdr.biBitCount = 32;
-				hdr.biSizeImage = res.RowPitch * desc.Height;
+				hdr.biSizeImage = pitch * desc.Height;
 
 				BITMAPFILEHEADER fh = { 0 };
 				fh.bfType = 'MB';
@@ -76,10 +77,11 @@ bool SaveTex( LPCSTR path, ID3D11Device* dev, ID3D11DeviceContext* dc, ID3D11Tex
 
 				// swivel RGBA to BGRA
 				unsigned char t = 0;
+				const LONG padd = res.RowPitch - pitch;
 				for( unsigned char* px = (unsigned char*)res.pData, *pxE = ( (unsigned char*)res.pData ) + hdr.biSizeImage;
-					 px != pxE; )
+					 px != pxE; px+= padd )
 				{
-					for( const unsigned char* pxLE = px + res.RowPitch; px != pxLE; px += 4 )
+					for( const unsigned char* pxLE = px + pitch; px != pxLE; px += 4 )
 					{
 						t = px[0];
 						px[0] = px[2];
@@ -110,13 +112,15 @@ bool SaveTex( LPCSTR path, ID3D11Device* dev, ID3D11DeviceContext* dc, ID3D11Tex
 					 DXGI_FORMAT_R16G16B16A16_SINT == desc.Format
 				)
 			{
+				const LONG pitch = 4 * desc.Width;
+
 				BITMAPINFOHEADER hdr = { 0 };
 				hdr.biSize = sizeof( hdr );
 				hdr.biWidth = desc.Width;
 				hdr.biHeight = -LONG( desc.Height );
 				hdr.biPlanes = 1;
 				hdr.biBitCount = 32;
-				hdr.biSizeImage = desc.Width * 4 * desc.Height;
+				hdr.biSizeImage = desc.Height * pitch;
 
 				BITMAPFILEHEADER fh = { 0 };
 				fh.bfType = 'MB';
@@ -124,13 +128,15 @@ bool SaveTex( LPCSTR path, ID3D11Device* dev, ID3D11DeviceContext* dc, ID3D11Tex
 				fh.bfSize = fh.bfOffBits + hdr.biSizeImage;
 
 				// swivel RGBA to BGRA
+				unsigned short* pxS = (unsigned short*)res.pData;
+
 				unsigned char t = 0;
 				unsigned char* pDst = new unsigned char[hdr.biSizeImage];
 				unsigned char* pxD = pDst;
 				for( UINT y = 0; y != desc.Height; y++ )
 				{
-					unsigned short* pxS = (unsigned short*)( ((unsigned char*)res.pData) + y * res.RowPitch );
-					for( const unsigned short* pxLE = pxS + desc.Width * 4; pxS != pxLE; pxS += 4, pxD += 4 )
+					const unsigned short* pxS = (unsigned short*)( ((unsigned char*)res.pData) + ptrdiff_t(y) * res.RowPitch );
+					for( const unsigned short* pxLE = pxS + ptrdiff_t( 4 )  * desc.Width; pxS != pxLE; pxS += 4, pxD += 4 )
 					{
 						pxD[0] = unsigned char( pxS[1] >> 8 );
 						pxD[1] = unsigned char( pxS[2] >> 8 );
@@ -575,6 +581,7 @@ VWB_ERROR DX11WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			FLT_MAX, //FLOAT MaxLOD;
 		};
 		m_device->CreateSamplerState( &descSam, &m_SSLin );
+		descSam.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 		descSam.AddressU = descSam.AddressV = descSam.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 		m_device->CreateSamplerState( &descSam, &m_SSClamp );
 
@@ -1112,8 +1119,8 @@ VWB_ERROR DX11WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	m_dc->PSSetShader( m_PixelShader, NULL, 0 );
 	m_dc->PSSetConstantBuffers( 0, 1, &m_ConstantBuffer );
 
-	ID3D11ShaderResourceView* ppRes[] = { m_texBB ,m_texWarp, m_texBlend, m_texCur, m_texBlack };
-	ID3D11SamplerState* ppSam[] = { m_SSLin ,m_SSClamp, m_SSLin, m_SSLin, m_SSLin };
+	ID3D11ShaderResourceView* ppRes[] = { m_texWarp, m_texBlend, m_texCur, m_texBlack, m_texBB };
+	ID3D11SamplerState* ppSam[] = { m_SSClamp, m_SSLin, m_SSLin, m_SSLin, m_SSLin };
 	m_dc->PSSetShaderResources( 0, ARRAYSIZE( ppRes ), ppRes );
 	m_dc->PSSetSamplers( 0, 5, ppSam );
 
