@@ -17,6 +17,7 @@
 #include <time.h>
 #include <limits.h>
 #include <float.h>
+#include <list>
 
 #ifdef WIN32
 #include <crtdbg.h>
@@ -708,6 +709,19 @@ VWB_ERROR VWB_getWarpBlendMesh( VWB_Warper* pWarper, VWB_int cols, VWB_int rows,
 {
 	if( pWarper )
 		return ((VWB_Warper_base*)pWarper)->getWarpMesh( cols, rows, mesh );
+	return VWB_ERROR_PARAMETER;
+}
+
+VWB_ERROR VWB_destroyWarpBlendMesh( VWB_Warper* pWarper, VWB_WarpBlendMesh& mesh )
+{
+	if( pWarper )
+	{
+		if( mesh.idx )
+			delete[] mesh.idx;
+		if( mesh.vtx )
+			delete[] mesh.vtx;
+		mesh = VWB_WarpBlendMesh{ 0 };
+	}
 	return VWB_ERROR_PARAMETER;
 }
 
@@ -2102,295 +2116,1093 @@ VWB_uint subMesh( VWB_WarpBlendMesh::idx_t& idx, VWB_WarpBlendMesh::idx_t& oldRe
 		float                               lPt2[3];								///<   second point pair
 		float                               lTangDescX[2];							///<   parameter list to descibe an optional tangent of the point for extrapolation in x direction ([0] distance, [1] degree)
 		float                               lTangDescY[2];							///<   parameter list to descibe an optional tangent of the point for extrapolation in y direction ([0] distance, [1] degree)
-		void Empty()
-		{
-			::memset( this, 0, sizeof( SPPair3f ) );
-			lTangDescX[0]=1.0f;
-			lTangDescY[0]=1.0f;
-		}
+		static const SPPair3f _empty;
 	} SPPair3f;
+	const SPPair3f SPPair3f::_empty = SPPair3f{ 0,0,{0,0,0},{0,0,0},{1,0},{1,0} };
 
 	typedef std::vector<SPPair3f> DynSPPointPairList3f;
 	typedef std::vector<long> DynLongList;
 	typedef std::vector<long*> DynLongPtrList;
 	typedef std::vector<unsigned int> DynDWORDList;
 
-int ComputeTriangluation( DynSPPointPairList3f& lPoints, DynLongList& lTriangleIdx, VWB_WarpRecord* pSrcD, VWB_BlendRecord3* pSrcDB, long width, long height, unsigned int qConsolidateSteps )
-{
-	lPoints.clear();
-	lTriangleIdx.clear();
-
-	if(!( pSrcD && (width>0) && (height>0) ) )
-		return 0;
-	if( (width==1) || (height==1) )
-		return 1;
-
-	int f;
-	float yF;
-	SPPair3f* pP;
-	long i,j,k,idx;
-	VWB_WarpRecord* pW, *pW1;
-	VWB_BlendRecord3* pB;
-	std::vector<long> IdxD;
-
-	idx=width*height;
-	IdxD.resize( idx, 0 );
-	size_t q;
-	long *pL,*pL1,*pL2;
-	DynLongPtrList lLnPtr;
-	DynDWORDList lPtsPerLn;
-	unsigned int q1,q2,qH,qV,qHMin,qRgnH,qRgnV,qRgn;
-
-	if(qConsolidateSteps)
+	int ComputeTriangluation( DynSPPointPairList3f& lPoints, DynLongList& lTriangleIdx, VWB_WarpRecord* pSrcD, VWB_BlendRecord3* pSrcDB, long width, long height, unsigned int qConsolidateSteps )
 	{
-		lLnPtr.reserve((size_t)height);
-		lPtsPerLn.reserve((size_t)height);
-	}
+		lPoints.clear();
+		lTriangleIdx.clear();
 
-	lPoints.reserve((size_t)idx);
+		if( !( pSrcD && ( width > 0 ) && ( height > 0 ) ) )
+			return 0;
+		if( ( width == 1 ) || ( height == 1 ) )
+			return 1;
 
-	idx*=6;
-	lTriangleIdx.reserve((size_t)idx);
+		int f;
+		float yF;
+		SPPair3f* pP;
+		long i, j, k, idx;
+		VWB_WarpRecord* pW, * pW1;
+		VWB_BlendRecord3* pB;
+		std::vector<long> IdxD;
 
-	pL=&IdxD[0];
-	pW=pSrcD;
-	pB=pSrcDB;
+		idx = width * height;
+		IdxD.resize( idx, 0 );
+		size_t q;
+		long* pL, * pL1, * pL2;
+		DynLongPtrList lLnPtr;
+		DynDWORDList lPtsPerLn;
+		unsigned int q1, q2, qH, qV, qHMin, qRgnH, qRgnV, qRgn;
 
-	long w = width - 1;
-	long h = height - 1;
-
-	// translate to map where lPt1 ist the vertex coordinate and lPt2 is the texture coordinate; fill the index list
-	for( idx=0, i=0; i<=h ; i++)
-	{
-		for( yF=(float)i, j=0; j<=w ; j++, pW++, pL++, pB++ )
+		if( qConsolidateSteps )
 		{
-			if( pW->z > 0.5f ) // test if valid
+			lLnPtr.reserve( (size_t)height );
+			lPtsPerLn.reserve( (size_t)height );
+		}
+
+		lPoints.reserve( (size_t)idx );
+
+		idx *= 6;
+		lTriangleIdx.reserve( (size_t)idx );
+
+		pL = &IdxD[0];
+		pW = pSrcD;
+		pB = pSrcDB;
+
+		long w = width - 1;
+		long h = height - 1;
+
+		// translate to map where lPt1 ist the vertex coordinate and lPt2 is the texture coordinate; fill the index list
+		for( idx = 0, i = 0; i <= h; i++ )
+		{
+			for( yF = (float)i, j = 0; j <= w; j++, pW++, pL++, pB++ )
 			{
-				SPPair3f d;
-				lPoints.push_back(d);
-				pP = &lPoints.back();
-				pP->Empty();
-				pP->lPt2[0] = pW->x;
-				pP->lPt2[1] = pW->y;
-				pP->lPt1[0] = (float)j;
-				pP->lPt1[1] = yF;
-				pP->lTangDescX[0]= pB->r;
-				pP->lTangDescX[1]= pB->g;
-				pP->lTangDescY[0]= pB->b;
-				pP->lTangDescY[1]= pB->a;
-				if(i<h) // look below
+				if( pW->z > 0.5f ) // test if valid
 				{
-					pW1 = pW + width;
-					if( pW1->z > 0.5f ) // point is valid
+					lPoints.push_back( SPPair3f{
+							0, 0,
+							{ float( j ), yF , 0 },
+							{ pW->x, pW->y, pW->z },
+							{ pB->r, pB->g },
+							{ pB->b, pB->a } } );
+					pP = &lPoints.back();
+					if( i < h ) // look below
 					{
-						pP->fPos|=FLAG_CTRLPT_POS_BORDER_BOTTOM;
-						pP->fUse++;
-					}
-				}
-				else
-				{
-					pW1=NULL;
-				}
-				if(j<w)
-				{
-					if(pW1) 
-					{
-						pW1++; // look below right
-						if( pW1->z > 0.5f ) // valid
+						pW1 = pW + width;
+						if( pW1->z > 0.5f ) // point is valid
 						{
-							pP->fPos|=FLAG_CTRLPT_POS_BORDER_DIAGONAL;
+							pP->fPos |= FLAG_CTRLPT_POS_BORDER_BOTTOM;
 							pP->fUse++;
 						}
 					}
-					pW1 = pW + 1; // look right
-					if( pW1->z > 0.5f )
+					else
 					{
-						pP->fPos|=FLAG_CTRLPT_POS_BORDER_RIGHT;
-						pP->fUse++;
+						pW1 = NULL;
 					}
+					if( j < w )
+					{
+						if( pW1 )
+						{
+							pW1++; // look below right
+							if( pW1->z > 0.5f ) // valid
+							{
+								pP->fPos |= FLAG_CTRLPT_POS_BORDER_DIAGONAL;
+								pP->fUse++;
+							}
+						}
+						pW1 = pW + 1; // look right
+						if( pW1->z > 0.5f )
+						{
+							pP->fPos |= FLAG_CTRLPT_POS_BORDER_RIGHT;
+							pP->fUse++;
+						}
+					}
+					*pL = idx; // set index
+					idx++;
 				}
-				*pL=idx; // set index
-				idx++;
-			}
-			else
-			{
-				*pL=-1; // mark index as invalid
+				else
+				{
+					*pL = -1; // mark index as invalid
+				}
 			}
 		}
-	}
 
-	pL = &IdxD[0];
-	for( i=0; i<h ; i++, pL++)
-	{
-		for( j=0; j<w ; j++, pL++)
+		pL = &IdxD[0];
+		for( i = 0; i < h; i++, pL++ )
 		{
-			idx=*pL;
-			if(idx<0)
-				continue;
-			pP=&lPoints[idx];
-			k=pP->fUse;
-			if(k<=1)
-				continue; // no neighboars
-
-			pL2=pL+width; // this is the point below
-			if(k==2)
+			for( j = 0; j < w; j++, pL++ )
 			{
-				// add one triangle
-				q = lTriangleIdx.size();
-				lTriangleIdx.insert( lTriangleIdx.end(), 3, 0 );
-				pL1=&lTriangleIdx[q];
-				pL1[0]=idx;
-				f=pP->fPos;
-				if(f & FLAG_CTRLPT_POS_BORDER_DIAGONAL)
+				idx = *pL;
+				if( idx < 0 )
+					continue;
+				pP = &lPoints[idx];
+				k = pP->fUse;
+				if( k <= 1 )
+					continue; // no neighboars
+
+				pL2 = pL + width; // this is the point below
+				if( k == 2 )
 				{
-					if(f & FLAG_CTRLPT_POS_BORDER_RIGHT)
+					// add one triangle
+					q = lTriangleIdx.size();
+					lTriangleIdx.insert( lTriangleIdx.end(), 3, 0 );
+					pL1 = &lTriangleIdx[q];
+					pL1[0] = idx;
+					f = pP->fPos;
+					if( f & FLAG_CTRLPT_POS_BORDER_DIAGONAL )
 					{
-						pL1[1]=pL[1];
-						pL1[2]=pL2[1];
+						if( f & FLAG_CTRLPT_POS_BORDER_RIGHT )
+						{
+							pL1[1] = pL[1];
+							pL1[2] = pL2[1];
+						}
+						else
+						{
+							pL1[1] = pL2[1];
+							pL1[2] = pL2[0];
+						}
 					}
 					else
 					{
-						pL1[1]=pL2[1];
-						pL1[2]=pL2[0];
+						pL1[1] = pL[1];
+						pL1[2] = pL2[0];
 					}
 				}
-				else
+				else if( qConsolidateSteps )
 				{
-					pL1[1]=pL[1];
-					pL1[2]=pL2[0];
-				}
-			}
-			else if(qConsolidateSteps)
-			{
-				lLnPtr.clear();
-				lPtsPerLn.clear();
-				
-				// find maximum rect smaller than step x step with all valid points
+					lLnPtr.clear();
+					lPtsPerLn.clear();
 
-				// go from current point down
-				qHMin = width; // initialize with maximum
-				for( pL1=pL, qV=0; qV<=qConsolidateSteps ; qV++, pL1+=width)
-				{
-					// go from current point right
-					for( pL2=pL1, qH=0; qH<=qConsolidateSteps ; qH++, pL2++)
+					// find maximum rect smaller than step x step with all valid points
+
+					// go from current point down
+					qHMin = width; // initialize with maximum
+					for( pL1 = pL, qV = 0; qV <= qConsolidateSteps; qV++, pL1 += width )
 					{
-						if(!(lPoints[*pL2].fPos & FLAG_CTRLPT_POS_BORDER_RIGHT))
-						{ // point has no right neighboar
-							qH++;
+						// go from current point right
+						for( pL2 = pL1, qH = 0; qH <= qConsolidateSteps; qH++, pL2++ )
+						{
+							if( !( lPoints[*pL2].fPos & FLAG_CTRLPT_POS_BORDER_RIGHT ) )
+							{ // point has no right neighboar
+								qH++;
+								break;
+							}
+						}
+						if( qH == 1 ) // no valid points at right, break outer loop because we reached minimum
+						{
+							qHMin = 1;
+							break;
+						}
+
+						lLnPtr.push_back( pL1 ); // remind position pointer in that line
+						lPtsPerLn.push_back( qH ); // remind number of points gone right in that line
+
+						// assign 
+						if( qH < qHMin )
+							qHMin = qH;
+
+						// break loop if no valid bottom point is there
+						if( !( lPoints[*pL1].fPos & FLAG_CTRLPT_POS_BORDER_BOTTOM ) )
+						{
 							break;
 						}
 					}
-					if(qH==1) // no valid points at right, break outer loop because we reached minimum
+
+					qH = lPtsPerLn[0];
+					qRgnV = (unsigned int)lLnPtr.size();
+					qRgnH = qHMin;
+					qRgn = qRgnH * qRgnV;
+
+					// try make a bigger rect with less lines
+					for( q1 = 1; q1 < qV; q1++ )
+						if( lPtsPerLn[q1] < qH )
+							break;
+
+					if( q1 == 1 )
 					{
-						qHMin = 1;
-						break;
+						q2 = 2 * lPtsPerLn[1];
+						if( q2 > qRgn )
+						{
+							qRgnV = 2;
+							qRgnH = lPtsPerLn[1];
+							qRgn = q2;
+						}
+					}
+					else
+					{
+						q2 = q1 * qH;
+						if( q2 > qRgn ) // take other rect
+						{
+							qRgnV = q1;
+							qRgnH = qH;
+							qRgn = q2;
+						}
 					}
 
-					lLnPtr.push_back(pL1); // remind position pointer in that line
-					lPtsPerLn.push_back(qH); // remind number of points gone right in that line
-
-					// assign 
-					if(qH<qHMin)
-						qHMin=qH;
-
-					// break loop if no valid bottom point is there
-					if(!(lPoints[*pL1].fPos & FLAG_CTRLPT_POS_BORDER_BOTTOM))
+					// look for the biggest square
+					qHMin = MIN( lPtsPerLn[0], lPtsPerLn[1] );
+					for( q1 = 2; q1 < qV; q1++ )
 					{
-						break;
+						q2 = lPtsPerLn[q1];
+						if( q2 < qHMin )
+							qHMin = q2;
+						if( qHMin <= q1 )
+							break;
 					}
-				}
-
-				qH=lPtsPerLn[0];
-				qRgnV=(unsigned int)lLnPtr.size();
-				qRgnH=qHMin;
-				qRgn=qRgnH*qRgnV;
-
-				// try make a bigger rect with less lines
-				for( q1=1; q1<qV ; q1++)
-					if(lPtsPerLn[q1]<qH)
-						break;
-
-				if(q1==1)
-				{
-					q2=2*lPtsPerLn[1];
-					if(q2>qRgn)
+					// look for the biggest square
+					if( qHMin < q1 )
+						q1 = qHMin;
+					q2 = q1 * q1;
+					if( q2 > qRgn )
 					{
-						qRgnV=2;
-						qRgnH=lPtsPerLn[1];
-						qRgn=q2;
+						qRgnV = q1;
+						qRgnH = q1;
+						qRgn = q2;
 					}
+
+					qRgnH--;
+					qRgnV--;
+					pL2 = lLnPtr[qRgnV] + qRgnH;
+
+					// save the triangles' indices
+					q = lTriangleIdx.size();
+					lTriangleIdx.insert( lTriangleIdx.end(), 6, 0 );
+					pL1 = &lTriangleIdx[q];
+					pL1[0] = idx;
+					pL1[1] = pL[qRgnH];
+					pL1[2] = *pL2;
+					pL1[3] = idx;
+					pL1[4] = *pL2;
+					pL1[5] = *( lLnPtr[qRgnV] );
+
+					// mark points as unused
+					for( qV = 0; qV < qRgnV; qV++ )
+						for( pL1 = lLnPtr[qV], qH = 0; qH < qRgnH; qH++, pL1++ )
+							if( 0 <= *pL1 )
+								lPoints[*pL1].fUse = 0;
 				}
 				else
 				{
-					q2=q1*qH;
-					if(q2>qRgn) // take other rect
-					{
-						qRgnV=q1;
-						qRgnH=qH;
-						qRgn=q2;
-					}
+					// save the triangles' indices
+					q = lTriangleIdx.size();
+					lTriangleIdx.insert( lTriangleIdx.end(), 6, 0 );
+					pL1 = &lTriangleIdx[q];
+					pL1[0] = idx;
+					pL1[1] = pL[1];
+					pL1[2] = pL2[1];
+					pL1[3] = idx;
+					pL1[4] = pL2[1];
+					pL1[5] = pL2[0];
 				}
-
-				// look for the biggest square
-				qHMin=MIN( lPtsPerLn[0], lPtsPerLn[1]);
-				for( q1=2; q1<qV ; q1++)
-				{
-					q2=lPtsPerLn[q1];
-					if(q2<qHMin)
-						qHMin=q2;
-					if(qHMin<=q1)
-						break;
-				}
-				// look for the biggest square
-				if(qHMin<q1)
-					q1=qHMin;
-				q2=q1*q1;
-				if(q2>qRgn)
-				{
-					qRgnV=q1;
-					qRgnH=q1;
-					qRgn=q2;
-				}
-
-				qRgnH--;
-				qRgnV--;
-				pL2=lLnPtr[qRgnV]+qRgnH;
-
-				// save the triangles' indices
-				q = lTriangleIdx.size();
-				lTriangleIdx.insert( lTriangleIdx.end(), 6, 0 );
-				pL1=&lTriangleIdx[q];
-				pL1[0]=idx;
-				pL1[1]=pL[qRgnH];
-				pL1[2]=*pL2;
-				pL1[3]=idx;
-				pL1[4]=*pL2;
-				pL1[5]=*(lLnPtr[qRgnV]);
-
-				// mark points as unused
-				for( qV=0; qV<qRgnV ; qV++)
-					for( pL1=lLnPtr[qV], qH=0; qH<qRgnH ; qH++, pL1++)
-						if( 0 <= *pL1 )
-							lPoints[*pL1].fUse=0;
-			}
-			else
-			{
-				// save the triangles' indices
-				q = lTriangleIdx.size();
-				lTriangleIdx.insert( lTriangleIdx.end(), 6, 0 );
-				pL1=&lTriangleIdx[q];
-				pL1[0]=idx;
-				pL1[1]=pL[1];
-				pL1[2]=pL2[1];
-				pL1[3]=idx;
-				pL1[4]=pL2[1];
-				pL1[5]=pL2[0];
 			}
 		}
+		return 1;
 	}
-	return 1;
-}
 
+	// return
+	// see ESPCommonState
+	bool RepairUniformGrid( DynSPPointPairList3f& grid, int wGrid, int hGrid, int dist )
+	{
+		enum POS_REL {
+			POS_REL_T, // tops
+			POS_REL_TT,
+			POS_REL_TTT,
+			POS_REL_TR,  // top-rights
+			POS_REL_TRTR,
+			POS_REL_TRTRTR,
+			POS_REL_R, // rights
+			POS_REL_RR,
+			POS_REL_RRR,
+			POS_REL_BR, // bottom-rights
+			POS_REL_BRBR,
+			POS_REL_BRBRBR,
+			POS_REL_B,  // bottoms
+			POS_REL_BB,
+			POS_REL_BBB,
+			POS_REL_BL, // bottom-lefts
+			POS_REL_BLBL,
+			POS_REL_BLBLBL,
+			POS_REL_L, // lefts
+			POS_REL_LL,
+			POS_REL_LLL,
+			POS_REL_TL, // top-lefts
+			POS_REL_TLTL,
+			POS_REL_TLTLTL,
+			POS_REL_SIZE
+		};
+
+		SIZE const delta[POS_REL_SIZE] = {
+			{  0, -1 }, {  0, -2 }, {  0, -3 }, // top
+			{  1, -1 }, {  2, -2 }, {  3, -3 }, // top-right
+			{  1,  0 }, {  2,  0 }, {  3,  0 }, // right
+			{  1,  1 }, {  2,  2 }, {  3,  3 }, // bottom-right
+			{  0,  1 }, {  0,  2 }, {  0,  3 }, // bottom
+			{ -1,  1 }, { -2,  2 }, { -3,  3 }, // bottom-left
+			{ -1,  0 }, { -2,  0 }, { -3,  0 }, // left
+			{ -1, -1 }, { -2, -2 }, { -3, -3 }, // top-left
+		};
+
+		typedef enum EST_TYPE {
+			EST_TYPE_INTER,
+			EST_TYPE_EXTRA,
+		} EST_TYPE;
+
+		struct Match {
+			POS_REL pos[3];
+			EST_TYPE est;
+			float score;
+		};
+
+		Match const matches[] = { // 1.0 horizintal or vertical interpolation, 0.9 diagonal interpolation, 0.75 extrapolation h/v, 0.675 diagonal extrap.
+			{ { POS_REL_LL, POS_REL_L, POS_REL_R }, EST_TYPE_INTER, 1.0f },
+			{ { POS_REL_RR, POS_REL_R, POS_REL_L }, EST_TYPE_INTER, 1.0f },
+			{ { POS_REL_TT, POS_REL_T, POS_REL_B }, EST_TYPE_INTER, 1.0f },
+			{ { POS_REL_BB, POS_REL_B, POS_REL_T }, EST_TYPE_INTER, 1.0f },
+
+			{ { POS_REL_TRTR, POS_REL_TR, POS_REL_BL }, EST_TYPE_INTER, 0.95f },
+			{ { POS_REL_BRBR, POS_REL_BR, POS_REL_TL }, EST_TYPE_INTER, 0.95f },
+			{ { POS_REL_BLBL, POS_REL_BL, POS_REL_TR }, EST_TYPE_INTER, 0.95f },
+			{ { POS_REL_TLTL, POS_REL_TL, POS_REL_BR }, EST_TYPE_INTER, 0.95f },
+
+			{ { POS_REL_TTT, POS_REL_TT, POS_REL_T }, EST_TYPE_EXTRA, 0.875f },
+			{ { POS_REL_BBB, POS_REL_BB, POS_REL_B }, EST_TYPE_EXTRA, 0.875f },
+			{ { POS_REL_LLL, POS_REL_LL, POS_REL_L }, EST_TYPE_EXTRA, 0.875f },
+			{ { POS_REL_RRR, POS_REL_RR, POS_REL_R }, EST_TYPE_EXTRA, 0.875f },
+
+			{ { POS_REL_TRTRTR, POS_REL_TRTR, POS_REL_TR }, EST_TYPE_EXTRA, 0.823f },
+			{ { POS_REL_BRBRBR, POS_REL_BRBR, POS_REL_BR }, EST_TYPE_EXTRA, 0.823f },
+			{ { POS_REL_BLBLBL, POS_REL_BLBL, POS_REL_BL }, EST_TYPE_EXTRA, 0.823f },
+			{ { POS_REL_TLTLTL, POS_REL_TLTL, POS_REL_TL }, EST_TYPE_EXTRA, 0.823f },
+		};
+
+		DynSPPointPairList3f newGrid;
+		int numOp = 0; // global iteration counter
+		int inValid = 0;
+		int added = 0;
+		int removed = 0;
+		int found = 0;
+		size_t nSz = size_t(wGrid) * hGrid;
+
+		newGrid.resize( nSz );
+		do {
+			if( -1 != dist && dist <= numOp )
+				return true;
+			numOp++;
+			added = 0;
+			found = 0;
+			inValid = 0;
+			#ifdef _DEBUG
+			int	good = 0;
+			#endif
+
+			// do all 
+			DynSPPointPairList3f::iterator pO = grid.begin();
+			DynSPPointPairList3f::iterator pN = newGrid.begin();
+			for( int y = 0; y != hGrid; y++ )
+			{
+				for( int x = 0; x != wGrid; x++, pO++, pN++ )
+				{
+					*pN = SPPair3f::_empty;
+
+					if( 0.5f <= pO->lPt2[2] )
+						continue;
+
+					int nMatches = 0;
+					for( int i = 0; i != ARRAYSIZE( matches ); i++ )
+					{
+						DynSPPointPairList3f::const_iterator ppOO[3] = { grid.end() };
+						for( int j = 0; j != 3; j++ )
+						{
+							if( x + delta[matches[i].pos[j]].cx < (LONG)wGrid && // not over right border
+								x + delta[matches[i].pos[j]].cx >= 0 && // not over left border
+								y + delta[matches[i].pos[j]].cy < (LONG)hGrid && // not over bottom border
+								y + delta[matches[i].pos[j]].cy >= 0 ) // not over top border
+							{
+								ppOO[j] = grid.begin() + ( ( ptrdiff_t( y ) + delta[matches[i].pos[j]].cy ) * wGrid + x + delta[matches[i].pos[j]].cx );
+								if( FLT_EPSILON > ppOO[j]->lPt2[2] )
+								{
+									ppOO[0] = grid.end();
+									break;
+								}
+							}
+							else
+							{
+								ppOO[0] = grid.end();
+								break;
+							}
+						}
+						if( grid.end() == ppOO[0] )
+							continue;
+
+						// we have a match
+						float vE[6] = { 0 };
+						if( EST_TYPE_INTER == matches[i].est )
+						{
+							// get 1/3-point vector between first and last point
+							float vM[2] = { 
+								ppOO[0]->lPt2[0] * 2.0f / 3.0f + ppOO[2]->lPt2[0] / 3.0f,
+								ppOO[0]->lPt2[1] * 2.0f / 3.0f + ppOO[2]->lPt2[1] / 3.0f 
+							};
+							// get distance vector of second point to linear estimation if second point
+							float vD[2] = { 
+								ppOO[1]->lPt2[0] - vM[0],
+								ppOO[1]->lPt2[1] - vM[1] 
+							}; // 
+							// estimate missing point on line from first and last, by adding the distance to mid-point (mirroring) and add correction
+							vE[0] = ppOO[0]->lPt2[0] / 3.0f + ppOO[2]->lPt2[0] * 2.0f / 3.0f + vD[0];
+							vE[1] = ppOO[0]->lPt2[1] / 3.0f + ppOO[2]->lPt2[1] * 2.0f / 3.0f + vD[1];
+							// blend value is just average of next points
+							vE[2] = 0.5f * ( ppOO[1]->lTangDescX[0] + ppOO[2]->lTangDescX[0] );
+							vE[3] = 0.5f * ( ppOO[1]->lTangDescX[1] + ppOO[2]->lTangDescX[1] );
+							vE[4] = 0.5f * ( ppOO[1]->lTangDescY[0] + ppOO[2]->lTangDescY[0] );
+							vE[5] = 0.5f * ( ppOO[1]->lTangDescY[1] + ppOO[2]->lTangDescY[1] );
+						}
+						else
+						{
+							// get mid-point vector between first and last point
+							float vM[2] = { ( ppOO[2]->lPt2[0] + ppOO[0]->lPt2[0] ) / 2, ( ppOO[2]->lPt2[1] + ppOO[0]->lPt2[1] ) / 2 };
+							// get distance vector of second point to linear estimation if second point
+							float vD[2] = { ppOO[1]->lPt2[0] - vM[0], ppOO[1]->lPt2[1] - vM[1] }; // 
+							// estimate missing point on line from first and last, by adding the distance to mid-point (mirroring) and subtract correction
+							vE[0] = ppOO[2]->lPt2[0] * 1.5f - ppOO[0]->lPt2[0] / 2 - vD[0];
+							vE[1] = ppOO[2]->lPt2[1] * 1.5f - ppOO[0]->lPt2[1] / 2 - vD[1];
+
+							// blend value is linear extrapolation
+							vE[2] = MAX( 0, MIN( 1, 2.0f * ppOO[2]->lTangDescX[0] - ppOO[1]->lTangDescX[0] ) );
+							vE[3] = MAX( 0, MIN( 1, 2.0f * ppOO[2]->lTangDescX[1] - ppOO[1]->lTangDescX[1] ) );
+							vE[4] = MAX( 0, MIN( 1, 2.0f * ppOO[2]->lTangDescY[0] - ppOO[1]->lTangDescY[0] ) );
+							vE[5] = MAX( 0, MIN( 1, 2.0f * ppOO[2]->lTangDescY[1] - ppOO[1]->lTangDescY[1] ) );
+						}
+						float score = matches[i].score * pow( ppOO[0]->lPt2[2] * ppOO[1]->lPt2[2] * ppOO[2]->lPt2[2], 1.0f / 3.0f ); // 0 < score <= 1, use geometric mean
+						nMatches++;
+						for( int i = 0; i != 6; i++ )
+							vE[i] *= score;
+
+						pN->lPt2[0] += vE[0];
+						pN->lPt2[1] += vE[1];
+						pN->lPt2[2] += score;
+						pN->lTangDescX[0] += vE[2];
+						pN->lTangDescX[1] += vE[3];
+						pN->lTangDescY[0] += vE[4];
+						pN->lTangDescY[1] += vE[5];
+					}
+
+					if( FLT_EPSILON <= pN->lPt2[2] )
+					{
+						pN->lPt2[0] /= pN->lPt2[2];
+						pN->lPt2[1] /= pN->lPt2[2];
+						pN->lTangDescX[0] /= pN->lPt2[2];
+						pN->lTangDescX[1] /= pN->lPt2[2];
+						pN->lTangDescY[0] /= pN->lPt2[2];
+						pN->lTangDescY[1] /= pN->lPt2[2];
+
+						pN->lPt2[2] /= nMatches;
+
+						if( FLT_EPSILON > pN->lPt2[2] )
+							pN->lPt2[2] = FLT_EPSILON;
+					}
+
+				}
+			}
+
+			// repair grid
+
+			float scoreMax = 0;
+			for( pN = newGrid.begin(); pN != newGrid.end(); pN++ )
+				if( scoreMax < pN->lPt2[2] )
+					scoreMax = pN->lPt2[2];
+
+			scoreMax *= 0.95f; // need to be in 95%
+
+			// copy back to original
+			for( pO = grid.begin(), pN = newGrid.begin(); pO != grid.end(); pO++, pN++ )
+			{
+				if( 0.5f <= pO->lPt2[2] )
+				{
+					#ifdef _DEBUG
+					good++;
+					#endif
+					continue;
+				}
+				if( scoreMax <= pN->lPt2[2] ) // has maximum score, so guessing is as good as it gets
+				{
+					pO->lPt2[0] = pN->lPt2[0];
+					pO->lPt2[1] = pN->lPt2[1];
+					pO->lPt2[2] = +.5f + MAX( FLT_EPSILON, pN->lPt2[2] * 0.5f ); // fit back to "good value" window
+					pO->lTangDescX[0] = pN->lTangDescX[0];
+					pO->lTangDescX[1] = pN->lTangDescX[1];
+					pO->lTangDescY[0] = pN->lTangDescY[0];
+					pO->lTangDescY[1] = pN->lTangDescY[1];
+					added++;
+				}
+				else
+					inValid++;
+			}
+			logStr( 2, "Info: RepairUniformGrid: run %i added %i, removed %i points. Leaving %i invalid points.", numOp, added, removed, inValid );
+		} while( 0 != added &&
+				 0 < inValid );
+
+		if( 0 != inValid )
+			return false;
+
+		return true;
+	}
+
+	// translate to map where lPt1 ist the vertex coordinate and lPt2 is the texture coordinate; fill the index list
+	int ComputeTriangluation2( DynSPPointPairList3f& lPoints, DynLongList& lTriangleIdx, VWB_WarpRecord* pSrcD, VWB_BlendRecord2* pSrcDB, long width, long height, long wGrid, long hGrid )
+	{
+		lTriangleIdx.clear();
+		lTriangleIdx.reserve( 4 * width / wGrid * height / hGrid );
+
+		std::vector< ptrdiff_t > lGrid;
+		lGrid.reserve( ptrdiff_t( wGrid ) * hGrid );
+
+		lPoints.clear();
+		lPoints.reserve( ptrdiff_t( wGrid ) * hGrid );
+
+		for( long yG = 0; yG != hGrid; yG++ )
+		{
+			long y = yG * ( height - 1 ) / ( hGrid - 1 );
+			for( long xG = 0; xG != wGrid; xG++ )
+			{
+				long x = xG * ( width - 1 ) / ( wGrid - 1 );
+
+				ptrdiff_t i = ptrdiff_t( y ) * width + x;
+				lGrid.push_back( i );
+
+				VWB_WarpRecord const* pW = pSrcD + i;
+				VWB_BlendRecord2 const* pB = pSrcDB + i;
+
+				lPoints.push_back( SPPair3f{ 
+					0, 0, 
+					{ float(x), float(y), 0 },
+					{ pW->x, pW->y, pW->z },
+					{ float(pB->r) / 65535.0f, float( pB->g ) / 65535.0f },
+					{ float( pB->b) / 65535.0f,float( pB->a) / 65535.0f } } );
+			}
+		}
+
+		// repair locally, try to find a very next couple of points to estimate the gridpoint
+		// we often have a line on border missing
+		enum POS_REL {
+			POS_REL_T, // tops
+			POS_REL_TT,
+			POS_REL_TR,  // top-rights
+			POS_REL_TRTR,
+			POS_REL_R, // rights
+			POS_REL_RR,
+			POS_REL_BR, // bottom-rights
+			POS_REL_BRBR,
+			POS_REL_B,  // bottoms
+			POS_REL_BB,
+			POS_REL_BL, // bottom-lefts
+			POS_REL_BLBL,
+			POS_REL_L, // lefts
+			POS_REL_LL,
+			POS_REL_TL, // top-lefts
+			POS_REL_TLTL,
+			POS_REL_SIZE
+		};
+
+		SIZE const delta[POS_REL_SIZE] = {
+			{  0, -1 }, {  0, -2 }, // top
+			{  1, -1 }, {  2, -2 }, // top-right
+			{  1,  0 }, {  2,  0 }, // right
+			{  1,  1 }, {  2,  2 }, // bottom-right
+			{  0,  1 }, {  0,  2 }, // bottom
+			{ -1,  1 }, { -2,  2 }, // bottom-left
+			{ -1,  0 }, { -2,  0 }, // left
+			{ -1, -1 }, { -2, -2 }, // top-left
+		};
+
+		struct Match {
+			POS_REL pos[3];
+		} const matches[] = { // 1.0 horizintal or vertical interpolation, 0.9 diagonal interpolation, 0.75 extrapolation h/v, 0.675 diagonal extrap.
+			{ { POS_REL_TT, POS_REL_T } },
+			{ { POS_REL_BB, POS_REL_B } },
+			{ { POS_REL_LL, POS_REL_L } },
+			{ { POS_REL_RR, POS_REL_R } },
+
+			{ { POS_REL_TRTR, POS_REL_TR } },
+			{ { POS_REL_BRBR, POS_REL_BR } },
+			{ { POS_REL_BLBL, POS_REL_BL } },
+			{ { POS_REL_TLTL, POS_REL_TL } },
+		};
+
+		for( auto pt : lPoints )
+		{
+			if( 0.5f > pt.lPt2[2] )
+			{
+				struct Candidate
+				{
+					Match match;
+					ptrdiff_t ind1, ind2;
+				};
+				std::vector<Candidate> candidates;
+				candidates.reserve( ARRAYSIZE( matches ) );
+				for( int i = 0; i != ARRAYSIZE( matches ); i++ )
+				{
+					long x1 = long( pt.lPt1[0] ) + delta[matches[i].pos[0]].cx;
+					long y1 = long( pt.lPt1[1] ) + delta[matches[i].pos[0]].cy;
+					long x2 = long( pt.lPt1[0] ) + delta[matches[i].pos[1]].cx;
+					long y2 = long( pt.lPt1[1] ) + delta[matches[i].pos[1]].cy;
+					ptrdiff_t ind1 = ptrdiff_t( y1 ) * width + ptrdiff_t( x1 );
+					ptrdiff_t ind2 = ptrdiff_t( y2 ) * width + ptrdiff_t( x2 );
+					if(
+						x1 < width && // not over right border
+						x1 >= 0 && // not over left border
+						y1 < height && // not over bottom border
+						y1 >= 0 &&  // not over top border
+						0.5f <= pSrcD[ind1].z && //valid
+						x2 < width && // not over right border
+						x2 >= 0 && // not over left border
+						y2 < height && // not over bottom border
+						y2 >= 0 &&  // not over top border
+						0.5f <= pSrcD[ind2].z ) //valid
+					{
+						candidates.push_back( Candidate{ matches[i], ind1, ind2 } );
+					}
+				}
+				if( !candidates.empty() )
+				{
+					pt.lPt2[0] = 0;
+					pt.lPt2[1] = 0;
+					pt.lPt2[2] = 0;
+					pt.lTangDescX[0] = 0;
+					pt.lTangDescX[1] = 0;
+					pt.lTangDescY[0] = 0;
+					pt.lTangDescY[1] = 0;
+					for( auto candidate : candidates )
+					{
+						pt.lPt2[0] += 2.0f * pSrcD[candidate.ind1].x - pSrcD[candidate.ind2].x;
+						pt.lPt2[1] += 2.0f * pSrcD[candidate.ind1].y - pSrcD[candidate.ind2].y;
+						pt.lPt2[2] += 2.0f * pSrcD[candidate.ind1].z - pSrcD[candidate.ind2].z;
+						pt.lTangDescX[0] += MAX( 0, MIN( 1, 2.0f * float( pSrcDB[candidate.ind1].r ) / float( 65535 ) - float( pSrcDB[candidate.ind2].r ) / float( 65535 ) ) );
+						pt.lTangDescX[1] += MAX( 0, MIN( 1, 2.0f * float( pSrcDB[candidate.ind1].g ) / float( 65535 ) - float( pSrcDB[candidate.ind2].g ) / float( 65535 ) ) );
+						pt.lTangDescY[0] += MAX( 0, MIN( 1, 2.0f * float( pSrcDB[candidate.ind1].b ) / float( 65535 ) - float( pSrcDB[candidate.ind2].b ) / float( 65535 ) ) );
+						pt.lTangDescY[1] += MAX( 0, MIN( 1, 2.0f * float( pSrcDB[candidate.ind1].a ) / float( 65535 ) - float( pSrcDB[candidate.ind2].a ) / float( 65535 ) ) );
+					}
+					pt.lPt2[0] /= candidates.size();
+					pt.lPt2[1] /= candidates.size();
+					pt.lPt2[2] /= candidates.size();
+					pt.lTangDescX[0] /= candidates.size();
+					pt.lTangDescX[1] /= candidates.size();
+					pt.lTangDescY[0] /= candidates.size();
+					pt.lTangDescY[1] /= candidates.size();
+				}
+			}
+		}
+
+		// repair grid (a little)
+		RepairUniformGrid( lPoints, wGrid, hGrid, 1 );
+
+		// triangulate
+//	
+//			x1  x2
+//		y1	p1--p2
+//			| \ A|
+//			| B\ |
+//		y2  p4--p3
+//	
+//			x1  x2
+//		y1	p1--p2
+//			| C/ |
+//			| / D|
+//		y2  p4--p3
+		// we assume CCW culling
+		for( long y = 1; y != hGrid; y++ )
+		{
+			for( long x = 1; x != wGrid; x++ )
+			{
+				long pt1 = ( y - 1 ) * wGrid + ( x - 1 );
+				long pt2 = ( y - 1 ) * wGrid + x;
+				long pt3 = y * wGrid + x;
+				long pt4 = y * wGrid + ( x - 1 );
+
+				if( 0.5f <= pSrcD[lGrid[pt1]].z )
+				{ // pt1 valid
+					if( 0.5f <= pSrcD[lGrid[pt3]].z )
+					{
+						if( 0.5f <= pSrcD[lGrid[pt2]].z )
+						{
+							// triangle A valid, add it
+							lTriangleIdx.push_back( pt1 );
+							lTriangleIdx.push_back( pt3 );
+							lTriangleIdx.push_back( pt2 );
+						}
+						if( 0.5f <= pSrcD[lGrid[pt4]].z )
+						{
+							// triangle B valid, add it
+							lTriangleIdx.push_back( pt1 );
+							lTriangleIdx.push_back( pt4 );
+							lTriangleIdx.push_back( pt3 );
+						}
+					}
+					else if( 0.5f <= pSrcD[lGrid[pt2]].z &&
+							 0.5f <= pSrcD[lGrid[pt4]].z )
+					{ 
+						// tiangle C valid
+						lTriangleIdx.push_back( pt1 );
+						lTriangleIdx.push_back( pt4 );
+						lTriangleIdx.push_back( pt2 );
+					}
+				}
+				else if( 0.5f <= pSrcD[lGrid[pt2]].z &&
+						 0.5f <= pSrcD[lGrid[pt3]].z && 
+						 0.5f <= pSrcD[lGrid[pt4]].z )
+				{
+					// tiangle D valid
+					lTriangleIdx.push_back( pt1 );
+					lTriangleIdx.push_back( pt4 );
+					lTriangleIdx.push_back( pt3 );
+				}
+			}
+		}
+
+		/*
+		// find all border points, which do not have 8 neighbors (left, top-left, top, top-right, right, bottom-right, bottom, bottom-left )
+
+		long pos2off[] = {
+			-1,			// left
+			-width - 1,	// top-left
+			-width,		// top
+			-width + 1, // top-right
+			1,			// right
+			width + 1,	// bottom-right
+			width,		// bottom
+			width - 1	// bottom-left
+		};
+		std::list< long > borderMapIdx;
+		//borderMapIdx.reserve( 2 * width * height );
+		VWB_WarpRecord const* pW = pSrcD;
+		// first row
+		for( long i = 0; i != width; i++ )
+		{
+			if( 0.5f <= pSrcD[i].z )
+			{
+				borderMapIdx.push_back( i );
+			}
+		}
+		// first column
+		for( long i = 0, iE = width * height; i != iE; i += width )
+		{
+			if( 0.5f <= pSrcD[i].z )
+			{
+				borderMapIdx.push_back( i );
+			}
+		}
+		// last row
+		for( long i = width * ( height - 1 ), iE = width * height; i != iE; i++ )
+		{
+			if( 0.5f <= pSrcD[i].z )
+			{
+				borderMapIdx.push_back( i );
+			}
+		}
+		// last column
+		for( long i = ( width - 1 ), iE = width * ( height + 1 ) - 1; i != iE; i += width )
+		{
+			if( 0.5f <= pSrcD[i].z )
+			{
+				borderMapIdx.push_back( i );
+			}
+		}
+		
+		// inner
+		for( VWB_WarpRecord const* pW = pSrcD + ( width + 1 ), *pWE = pSrcD + ( height * width + 1 ); pW != pWE; pW+= 2 )
+		{
+			for( VWB_WarpRecord const* pWLE = pW + ( width - 1 ); pW != pWLE; pW++ )
+			{
+				if( 0.5f <= pW->z ) // is valid
+				{
+					for( long i = 0; i != ARRAYSIZE( pos2off ); i++ )
+					{
+						VWB_WarpRecord const* pO = pW + pos2off[i];
+						if( 0.5f > pO->z )
+						{
+							borderMapIdx.push_back( long(pSrcD - pW) );
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		// now gather outline(s) and holes
+		std::vector< std::list<long> > outlines;
+		std::vector< std::list<long> > holes;
+
+		lPoints.clear();
+		lTriangleIdx.clear();
+
+		if( !( pSrcD && ( width > 0 ) && ( height > 0 ) ) )
+			return 0;
+		if( ( width == 1 ) || ( height == 1 ) )
+			return 1;
+
+		int f;
+		float yF;
+		SPPair3f* pP;
+		long i, j, k, idx;
+		VWB_WarpRecord* pW, * pW1;
+		VWB_BlendRecord3* pB;
+		std::vector<long> IdxD;
+
+		idx = width * height;
+		IdxD.resize( idx, 0 );
+		size_t q;
+		long* pL, * pL1, * pL2;
+		DynLongPtrList lLnPtr;
+		DynDWORDList lPtsPerLn;
+		unsigned int q1, q2, qH, qV, qHMin, qRgnH, qRgnV, qRgn;
+
+		if( qConsolidateSteps )
+		{
+			lLnPtr.reserve( (size_t)height );
+			lPtsPerLn.reserve( (size_t)height );
+		}
+
+		lPoints.reserve( (size_t)idx );
+
+		idx *= 6;
+		lTriangleIdx.reserve( (size_t)idx );
+
+		pL = &IdxD[0];
+		pW = pSrcD;
+		pB = pSrcDB;
+
+		long w = width - 1;
+		long h = height - 1;
+
+		// translate to map where lPt1 ist the vertex coordinate and lPt2 is the texture coordinate; fill the index list
+		for( idx = 0, i = 0; i <= h; i++ )
+		{
+			for( yF = (float)i, j = 0; j <= w; j++, pW++, pL++, pB++ )
+			{
+				if( pW->z > 0.5f ) // test if valid
+				{
+					SPPair3f d;
+					lPoints.push_back( d );
+					pP = &lPoints.back();
+					pP->Empty();
+					pP->lPt2[0] = pW->x;
+					pP->lPt2[1] = pW->y;
+					pP->lPt1[0] = (float)j;
+					pP->lPt1[1] = yF;
+					pP->lTangDescX[0] = pB->r;
+					pP->lTangDescX[1] = pB->g;
+					pP->lTangDescY[0] = pB->b;
+					pP->lTangDescY[1] = pB->a;
+					if( i < h ) // look below
+					{
+						pW1 = pW + width;
+						if( pW1->z > 0.5f ) // point is valid
+						{
+							pP->fPos |= FLAG_CTRLPT_POS_BORDER_BOTTOM;
+							pP->fUse++;
+						}
+					}
+					else
+					{
+						pW1 = NULL;
+					}
+					if( j < w )
+					{
+						if( pW1 )
+						{
+							pW1++; // look below right
+							if( pW1->z > 0.5f ) // valid
+							{
+								pP->fPos |= FLAG_CTRLPT_POS_BORDER_DIAGONAL;
+								pP->fUse++;
+							}
+						}
+						pW1 = pW + 1; // look right
+						if( pW1->z > 0.5f )
+						{
+							pP->fPos |= FLAG_CTRLPT_POS_BORDER_RIGHT;
+							pP->fUse++;
+						}
+					}
+					*pL = idx; // set index
+					idx++;
+				}
+				else
+				{
+					*pL = -1; // mark index as invalid
+				}
+			}
+		}
+
+		pL = &IdxD[0];
+		for( i = 0; i < h; i++, pL++ )
+		{
+			for( j = 0; j < w; j++, pL++ )
+			{
+				idx = *pL;
+				if( idx < 0 )
+					continue;
+				pP = &lPoints[idx];
+				k = pP->fUse;
+				if( k <= 1 )
+					continue; // no neighboars
+
+				pL2 = pL + width; // this is the point below
+				if( k == 2 )
+				{
+					// add one triangle
+					q = lTriangleIdx.size();
+					lTriangleIdx.insert( lTriangleIdx.end(), 3, 0 );
+					pL1 = &lTriangleIdx[q];
+					pL1[0] = idx;
+					f = pP->fPos;
+					if( f & FLAG_CTRLPT_POS_BORDER_DIAGONAL )
+					{
+						if( f & FLAG_CTRLPT_POS_BORDER_RIGHT )
+						{
+							pL1[1] = pL[1];
+							pL1[2] = pL2[1];
+						}
+						else
+						{
+							pL1[1] = pL2[1];
+							pL1[2] = pL2[0];
+						}
+					}
+					else
+					{
+						pL1[1] = pL[1];
+						pL1[2] = pL2[0];
+					}
+				}
+				else if( qConsolidateSteps )
+				{
+					lLnPtr.clear();
+					lPtsPerLn.clear();
+
+					// find maximum rect smaller than step x step with all valid points
+
+					// go from current point down
+					qHMin = width; // initialize with maximum
+					for( pL1 = pL, qV = 0; qV <= qConsolidateSteps; qV++, pL1 += width )
+					{
+						// go from current point right
+						for( pL2 = pL1, qH = 0; qH <= qConsolidateSteps; qH++, pL2++ )
+						{
+							if( !( lPoints[*pL2].fPos & FLAG_CTRLPT_POS_BORDER_RIGHT ) )
+							{ // point has no right neighboar
+								qH++;
+								break;
+							}
+						}
+						if( qH == 1 ) // no valid points at right, break outer loop because we reached minimum
+						{
+							qHMin = 1;
+							break;
+						}
+
+						lLnPtr.push_back( pL1 ); // remind position pointer in that line
+						lPtsPerLn.push_back( qH ); // remind number of points gone right in that line
+
+						// assign 
+						if( qH < qHMin )
+							qHMin = qH;
+
+						// break loop if no valid bottom point is there
+						if( !( lPoints[*pL1].fPos & FLAG_CTRLPT_POS_BORDER_BOTTOM ) )
+						{
+							break;
+						}
+					}
+
+					qH = lPtsPerLn[0];
+					qRgnV = (unsigned int)lLnPtr.size();
+					qRgnH = qHMin;
+					qRgn = qRgnH * qRgnV;
+
+					// try make a bigger rect with less lines
+					for( q1 = 1; q1 < qV; q1++ )
+						if( lPtsPerLn[q1] < qH )
+							break;
+
+					if( q1 == 1 )
+					{
+						q2 = 2 * lPtsPerLn[1];
+						if( q2 > qRgn )
+						{
+							qRgnV = 2;
+							qRgnH = lPtsPerLn[1];
+							qRgn = q2;
+						}
+					}
+					else
+					{
+						q2 = q1 * qH;
+						if( q2 > qRgn ) // take other rect
+						{
+							qRgnV = q1;
+							qRgnH = qH;
+							qRgn = q2;
+						}
+					}
+
+					// look for the biggest square
+					qHMin = MIN( lPtsPerLn[0], lPtsPerLn[1] );
+					for( q1 = 2; q1 < qV; q1++ )
+					{
+						q2 = lPtsPerLn[q1];
+						if( q2 < qHMin )
+							qHMin = q2;
+						if( qHMin <= q1 )
+							break;
+					}
+					// look for the biggest square
+					if( qHMin < q1 )
+						q1 = qHMin;
+					q2 = q1 * q1;
+					if( q2 > qRgn )
+					{
+						qRgnV = q1;
+						qRgnH = q1;
+						qRgn = q2;
+					}
+
+					qRgnH--;
+					qRgnV--;
+					pL2 = lLnPtr[qRgnV] + qRgnH;
+
+					// save the triangles' indices
+					q = lTriangleIdx.size();
+					lTriangleIdx.insert( lTriangleIdx.end(), 6, 0 );
+					pL1 = &lTriangleIdx[q];
+					pL1[0] = idx;
+					pL1[1] = pL[qRgnH];
+					pL1[2] = *pL2;
+					pL1[3] = idx;
+					pL1[4] = *pL2;
+					pL1[5] = *( lLnPtr[qRgnV] );
+
+					// mark points as unused
+					for( qV = 0; qV < qRgnV; qV++ )
+						for( pL1 = lLnPtr[qV], qH = 0; qH < qRgnH; qH++, pL1++ )
+							if( 0 <= *pL1 )
+								lPoints[*pL1].fUse = 0;
+				}
+				else
+				{
+					// save the triangles' indices
+					q = lTriangleIdx.size();
+					lTriangleIdx.insert( lTriangleIdx.end(), 6, 0 );
+					pL1 = &lTriangleIdx[q];
+					pL1[0] = idx;
+					pL1[1] = pL[1];
+					pL1[2] = pL2[1];
+					pL1[3] = idx;
+					pL1[4] = pL2[1];
+					pL1[5] = pL2[0];
+				}
+			}
+		}
+	*/
+		return 1;
+	}
 VWB_ERROR Dummywarper::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMesh& mesh )
 {
 	if( 3 > cols || 3 > rows )
@@ -2405,6 +3217,18 @@ VWB_ERROR Dummywarper::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMes
 		return VWB_ERROR_NOT_IMPLEMENTED;
 	}
 
+	if( cols < 129 )
+	{
+		logStr( 1, "WARNING: getWarpMesh too few cols specified set to 129.\n" );
+		cols = 129;
+	}
+
+	if( rows < 129 )
+	{
+		logStr( 1, "WARNING: getWarpMesh too few rows specified set to 129.\n" );
+		rows = 129;
+	}
+
 	VWB_int& w = m_wb.header.width;
 	VWB_int& h = m_wb.header.height;
 	int nRecords = w * h;
@@ -2414,7 +3238,7 @@ VWB_ERROR Dummywarper::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMes
 		logStr( 0, "ERROR: getWarpMesh: warp map too small.\n" );
 		return VWB_ERROR_GENERIC;
 	}
-	logStr( 2, "INFO: getWarpMesh: params OK.\n" );
+	logStr( 2, "INFO: getWarpMesh( %i, %i, * ): params OK.\n", cols, rows );
 
 	//VWB_WarpBlend wbInv;
 	//VWB_ERROR err = invertWB( m_wb, wbInv );
@@ -2425,7 +3249,7 @@ VWB_ERROR Dummywarper::getWarpMesh( VWB_int cols, VWB_int rows, VWB_WarpBlendMes
 		DynSPPointPairList3f points;
 		DynLongList	indices;
 //		if( ComputeTriangluation( points, indices, wbInv.pWarp, wbInv.pBlend3, w, h, (DWORD)sqrt( (float)w * h / 20000 ) ) )
-		if( ComputeTriangluation( points, indices, m_wb.pWarp, m_wb.pBlend3, w, h, (unsigned int)sqrt( (float)w * h / 20000 ) ) )
+		if( ComputeTriangluation2( points, indices, m_wb.pWarp, m_wb.pBlend2, w, h, cols, rows ) )
 		{
 			logStr( 2, "INFO: getWarpMesh: triangulation.\n" );
 			DynLongList indTrans; indTrans.resize( points.size(), -1 );

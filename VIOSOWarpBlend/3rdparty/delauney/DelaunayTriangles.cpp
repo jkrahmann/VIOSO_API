@@ -329,6 +329,9 @@
 	#define TRIUNSIGNEDLONG unsigned long
 #endif//WIN64
 
+#ifdef WIN32
+#pragma warning( disable:4302 )
+#endif
 /* Two constants for algorithms based on random sampling.  Both constants    */
 /*   have been chosen empirically to optimize their respective algorithms.   */
 
