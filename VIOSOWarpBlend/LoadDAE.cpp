@@ -185,7 +185,7 @@ VWB_ERROR loadDAE( Scene& scene, char const* path )
 		MkPath( pp, MAX_PATH, ".dae" );
 
 		logStr( 2, "INFO: loadDAE: Open \"%s\"...\n", pp );
-		XMLDocument doc;
+        tinyxml2::XMLDocument doc;
 		if( XML_SUCCESS == doc.LoadFile( path ) )
 		{
 			logStr( 2, "INFO: DAELoad: File loaded.\n" );
