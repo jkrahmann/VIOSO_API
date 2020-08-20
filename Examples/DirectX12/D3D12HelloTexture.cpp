@@ -11,6 +11,7 @@
 
 #include "stdafx.h"
 #include "D3D12HelloTexture.h"
+#include <sstream>
 
 #ifdef USE_VIOSO_API
 #define VIOSOWARPBLEND_DYNAMIC_IMPLEMENT
@@ -39,7 +40,7 @@ void D3D12HelloTexture::OnInit()
 	if(
 		VWB_Create &&
 		VWB_Init &&
-		VWB_ERROR_NONE == VWB_Create( m_commandList.Get(), s_configFile, s_channel, &m_warper, 0, NULL ) &&
+		VWB_ERROR_NONE == VWB_Create( m_commandQueue.Get(), s_configFile, s_channel, &m_warper, 0, NULL ) &&
 		VWB_ERROR_NONE == VWB_Init( m_warper )
 		)
 	{
@@ -56,10 +57,12 @@ void D3D12HelloTexture::LoadPipeline()
     // Enable the debug layer (requires the Graphics Tools "optional feature").
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
     {
-        ComPtr<ID3D12Debug> debugController;
+        ComPtr<ID3D12Debug1> debugController;
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
         {
             debugController->EnableDebugLayer();
+            debugController->SetEnableGPUBasedValidation( TRUE );
+
 
             // Enable additional debug layers.
             dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
@@ -155,6 +158,9 @@ void D3D12HelloTexture::LoadPipeline()
             ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
             m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
             rtvHandle.Offset(1, m_rtvDescriptorSize);
+            std::wstringstream name;
+            name << L"backbuffer#" << n;
+            m_renderTargets[n]->SetName( name.str().c_str() );
         }
     }
 
@@ -313,7 +319,7 @@ void D3D12HelloTexture::LoadAssets()
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
             IID_PPV_ARGS(&m_texture)));
-
+        m_texture->SetName( L"texture" );
         const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture.Get(), 0, 1);
 
         // Create the GPU upload buffer.
@@ -422,6 +428,15 @@ void D3D12HelloTexture::OnRender()
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
+    #ifdef USE_VIOSO_API
+    VWB_D3D12_RENDERINPUT vri = {
+        nullptr,
+        m_renderTargets[m_frameIndex].Get(),
+        CD3DX12_CPU_DESCRIPTOR_HANDLE( m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize ).ptr
+    };
+    VWB_render( m_warper, &vri, VWB_STATEMASK_DEFAULT_D3D12/* | VWB_STATEMASK_CLEARBACKBUFFER*/ );
+    #endif
+
     // Present the frame.
     ThrowIfFailed(m_swapChain->Present(1, 0));
 
@@ -472,12 +487,10 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     m_commandList->DrawInstanced(3, 1, 0, 0);
 
+    #ifndef USE_VIOSO_API
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-    #ifdef USE_VIOSO_API
-    VWB_render( m_warper, &rtvHandle, VWB_STATEMASK_DEFAULT|VWB_STATEMASK_COPYBUFFER );
-    #endif
+    #endif //ndef USE_VIOSO_API
 
     ThrowIfFailed(m_commandList->Close());
 }

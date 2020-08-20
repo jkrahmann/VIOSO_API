@@ -1152,7 +1152,6 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 VWB_ERROR VWB_Warper_base::GetViewProjection( VWB_float* eye, VWB_float* rot, VWB_float* pView, VWB_float* pProj )
 {
 	// receive the current car parameters
-	::memset( &m_ep, 0, sizeof( m_ep ) );
 	if( m_hEPP && m_fnEPPGet ) // try eye porvider
 	{
 		m_fnEPPGet( m_hEPP, &m_ep );
@@ -1178,9 +1177,21 @@ VWB_ERROR VWB_Warper_base::GetViewProjection( VWB_float* eye, VWB_float* rot, VW
 	{ // use given
 		if( eye )
 			spliceVec( m_ep.x, m_ep.y, m_ep.z, eye[0], eye[1], eye[2], ( splice >> 16 ) );
+		else
+		{
+			m_ep.x = 0;
+			m_ep.y = 0;
+			m_ep.z = 0;
+		}
 
 		if( rot )
 			spliceVec( m_ep.pitch, m_ep.yaw, m_ep.roll, rot[0], rot[1], rot[2], splice );
+		else
+		{
+			m_ep.yaw = 0;
+			m_ep.pitch = 0;
+			m_ep.roll = 0;
+		}
 
 		if( NULL != eye && NULL != rot )
 			logStr( 3, "INFO: Eyepoint from call for channel [%s]: pos=[%01.3f,%01.3f,%01.3f] dir=[%01.3f,%01.3f,%01.3f].\n",
@@ -1271,7 +1282,7 @@ void VWB_Warper_base::Defaults()
 
 VWB_ERROR VWB_Warper_base::AutoView( VWB_WarpBlend const& wb )
 {
-	// test if blend3
+	// test if blend2
 	if( !( FLAG_WARPFILE_HEADER_BLENDV2 & wb.header.flags ) )
 		return VWB_ERROR_PARAMETER;
 

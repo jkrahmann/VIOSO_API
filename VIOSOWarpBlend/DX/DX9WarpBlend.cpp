@@ -126,7 +126,7 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if(FAILED(hr))
 		{
 			logStr( 0, "ERROR: Failed to create lookup textures.\n" );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		const size_t sz = size_t( m_sizeMap.cx ) * m_sizeMap.cy;
@@ -135,7 +135,7 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( FAILED( m_texWarp->LockRect( 0, &r, NULL, 0 ) ) )
 		{
 			logStr( 0, "ERROR: Failed to fill warp texture.\n" );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
 		{
@@ -155,7 +155,7 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( FAILED( m_texBlend->LockRect( 0, &r, NULL, 0 ) ) )
 		{
 			logStr( 0, "ERROR: Failed to fill blend texture.\n" );
-			throw VWB_ERROR_BLEND;
+			return VWB_ERROR_BLEND;
 		}
 		VWB_word* d = (VWB_word*)r.pBits;
 		for( VWB_BlendRecord2* s = wb.pBlend2, *sE = wb.pBlend2 + sz; s != sE; d += 4, s++ )
@@ -172,7 +172,7 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			if( FAILED( m_texBlack->LockRect( 0, &r, NULL, 0 ) ) )
 			{
 				logStr( 0, "ERROR: Failed to fill black level texture.\n" );
-				throw VWB_ERROR_BLEND;
+				return VWB_ERROR_BLEND;
 			}
 			VWB_byte* d = (VWB_byte*)r.pBits;
 			for( VWB_BlendRecord* s = wb.pBlack, *sE = wb.pBlack + sz; s != sE; d += 2, s++ )
@@ -208,7 +208,7 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			if( FAILED( hr ) )
 			{
 				logStr( 0, "ERROR: Failed to create shader!\n" );
-				throw VWB_ERROR_SHADER;
+				return VWB_ERROR_SHADER;
 			}
 			logStr( 2, "INFO: Pixelshader created.\n" );
 		}
@@ -219,14 +219,14 @@ VWB_ERROR DX9WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				logStr( 0, "ERROR: Failed to compile shader %s!\n", (char*)pErr->GetBufferPointer() );
 				pErr->Release();
 			}
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		m_VertexBuffer = CreateVertexBuffer( static_cast<float>( m_sizeMap.cx ), static_cast<float>( m_sizeMap.cy ) );
 		if( !m_VertexBuffer )
 		{
 			logStr( 0, "ERROR: Failed to create vertex buffer.\n" );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		logStr( 1, "SUCCESS: DX9-Warper initialized.\n" );
 

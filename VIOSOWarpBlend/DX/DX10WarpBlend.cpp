@@ -216,7 +216,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				else
 					delete[]( unsigned short* ) dataWarp.pSysMem;
 			}
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		SAFERELEASE( pTexWarp );
 		SAFERELEASE( pTexBlend );
@@ -236,7 +236,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{
 			logStr( 0, "ERROR: The vertex shader code cannot be compiled: %s\n", pErrBlob->GetBufferPointer() );
 			SAFERELEASE( pErrBlob );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		// Create the vertex shader0, 
@@ -245,7 +245,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{	
 			pVSBlob->Release();
 			logStr( 0, "ERROR: The vertex shader cannot be created: %08X\n", hr );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		FLOAT dx = 0.5f/m_sizeMap.cx;
 		FLOAT dy = 0.5f/m_sizeMap.cy;
@@ -273,7 +273,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( FAILED( hr ) )
 		{
 			logStr( 0, "ERROR: Could not create shader input layout: %08X\n", hr );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		D3D10_BUFFER_DESC bd = {0};
@@ -285,7 +285,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( FAILED( hr ) )
 		{
 			logStr( 0, "ERROR: Could not create constant buffer: %08X\n", hr );
-			throw VWB_ERROR_GENERIC;
+			return VWB_ERROR_GENERIC;
 		}
 
 		// Turn off culling, so we see the front and back of the triangle
@@ -304,7 +304,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( FAILED( hr ) )
 		{
 			logStr( 0, "ERROR: Could not create raster state: %08X\n", hr );
-			throw VWB_ERROR_GENERIC;
+			return VWB_ERROR_GENERIC;
 		}
 
 		// Compile the pixel shader
@@ -329,7 +329,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{
 			logStr( 0, "ERROR: The pixel shader code cannot be compiled (%08X): %s\n", hr, pErrBlob->GetBufferPointer() );
 			SAFERELEASE( pErrBlob );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		// Create the pixel shader
@@ -338,7 +338,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( FAILED( hr ) )
 		{	
 			logStr( 0, "ERROR: The pixel shader cannot be created: %08X\n", hr );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		
 		// Create the constant buffer
@@ -348,7 +348,7 @@ VWB_ERROR DX10WarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( FAILED( hr ) )
 		{
 			logStr( 0, "ERROR: Could not creare constant buffer: %08X\n", hr );
-			throw VWB_ERROR_GENERIC;
+			return VWB_ERROR_GENERIC;
 		}
 
 		D3D10_SAMPLER_DESC descSam = {

@@ -219,11 +219,11 @@ calibIndex=0
     /** render a warped and blended source texture into the current back buffer
 	* @remark for DirectX 9, call inside BeginScene/EndScene statements
 	* @param [IN]			pWarper	a valid warper
-    * @param [IN,OPT]		pSrc    the source texture, a IDirect3DTexture9* or a GLint texture index; 
+    * @param [IN,OPT]		pSrc    the source texture, a IDirect3DTexture9*, ID3D10Texture2D*, ID3D11Texture2D*, VWB_D3D12_RENDERINPUT* or a GLint texture index; 
 	* if current backbuffer must be read, set to NULL in any DX mode except 12 or to -1 in OpenGL mode
-	* in case of directX 12 you need to provide the backbuffer as parameter and set VWB_STATEMASK_COPYBUFFER.
+	* in case of directX 12 you need to provide a @see VWB_D3D12_RENDERINPUT as parameter.
 	* @param [IN,OPT]		stateMask @see VWB_STATEMASK enumeration, default is 0 to restore usual stuff
-	* In D3D12 all flags except VWB_STATEMASK_COPYBUFFER and VWB_STATEMASK_CLEARBACKBUFFER are ignored.
+	* In D3D12 all flags except VWB_STATEMASK_CLEARBACKBUFFER are ignored.
 	* The application is required to set inputs and shader in each term anyway.
 	* @return VWB_ERROR_NONE on success, VWB_ERROR_GENERIC otherwise */
     VIOSOWARPBLEND_API( VWB_ERROR, VWB_render, ( VWB_Warper* pWarper, VWB_param src, VWB_uint stateMask ) );  

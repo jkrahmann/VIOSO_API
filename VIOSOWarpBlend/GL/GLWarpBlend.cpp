@@ -201,12 +201,12 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			if( log[0] )
 			{
 				logStr( 0, "ERROR: glCompileShader (vertex):\n%s\n", log );
-				throw VWB_ERROR_SHADER;
+				return VWB_ERROR_SHADER;
 			}
 			if( GL_NO_ERROR != err )
 			{
 				logStr( 0, "ERROR: %d at glCompileShader (vertex).\n", err );
-				throw VWB_ERROR_SHADER;
+				return VWB_ERROR_SHADER;
 			}
 			glGenVertexArrays( 1, &m_iVertexArray );
 		}
@@ -227,12 +227,12 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( log[0] )
 		{
 			logStr( 0, "ERROR: glCompileShader (fragment bypass):\n%s\n", log );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glCompileShader (fragment bypass).\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		m_ProgramBypass = glCreateProgram();
@@ -240,7 +240,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glCreateProgram bypass.\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		if( -1 != m_VertexShader )
 		{
@@ -249,7 +249,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			if( GL_NO_ERROR != err )
 			{
 				logStr( 0, "ERROR: %d at glAttachShader (vertex bypass).\n", err );
-				throw VWB_ERROR_SHADER;
+				return VWB_ERROR_SHADER;
 			}
 		}
 		glAttachShader( m_ProgramBypass, m_FragmentShaderBypass );
@@ -257,7 +257,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glAttachShader (fragment bypass).\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		glLinkProgram( m_ProgramBypass );
@@ -265,7 +265,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glLinkProgram.\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		GLint isLinked = 0;
@@ -284,7 +284,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			m_ProgramBypass = -1;
 
 			logStr( 0, "ERROR: %d at glLinkProgram bypass:\n%s\n", err, infoLog );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		m_locContentBypass = glGetUniformLocation(m_ProgramBypass, "samContent");
 		
@@ -303,12 +303,12 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( log[0] )
 		{
 			logStr( 0, "ERROR: glCompileShader (fragment):\n%s\n", log );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glCompileShader (fragment).\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		m_Program = glCreateProgram();
@@ -316,7 +316,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glCreateProgram.\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		if( -1 != m_VertexShader )
 		{
@@ -325,7 +325,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			if( GL_NO_ERROR != err )
 			{
 				logStr( 0, "ERROR: %d at glAttachShader (vertex).\n", err );
-				throw VWB_ERROR_SHADER;
+				return VWB_ERROR_SHADER;
 			}
 		}
 		glAttachShader( m_Program, m_FragmentShader );
@@ -333,7 +333,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glAttachShader (fragment).\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		glLinkProgram( m_Program );
@@ -341,7 +341,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glLinkProgram.\n", err );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		glGetProgramiv(m_Program, GL_LINK_STATUS, &isLinked);
@@ -359,7 +359,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			m_ProgramBypass = -1;
 
 			logStr( 0, "ERROR: %d at glLinkProgram bypass:\n%s\n", err, infoLog );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		m_locSize =     glGetUniformLocation(m_Program, "size" );
@@ -380,7 +380,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( -1 == m_locContent || -1 == m_locContentBypass )
 		{
 			logStr( 0, "WARINIG: Shader content input missing.\n" );
-			//throw VWB_ERROR_SHADER;
+			//return VWB_ERROR_SHADER;
 		}
 
 		glGenTextures( 1, &m_texWarp );
@@ -388,21 +388,21 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glGenTextures:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		glActiveTexture( GL_TEXTURE0 );
 		err = glGetError();
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glActiveTexture:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		glBindTexture( GL_TEXTURE_2D, m_texWarp );
 		err = glGetError();
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glBindTexture:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
     /*
 		glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
@@ -410,7 +410,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexEnvi:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
     */
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
@@ -418,42 +418,42 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexParameteri:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 		err = glGetError();
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexParameteri:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		err = glGetError();
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexParameterf:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		err = glGetError();
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexParameterf:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, colBlack);
 		err = glGetError();
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexParameterfv:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		glTexImage2D( GL_TEXTURE_2D, 0, 0 != ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) ? GL_RGB32F : GL_RG32F, wb.header.width, wb.header.height, 0, GL_RGBA, GL_FLOAT, wb.pWarp );
 		err = ::glGetError();
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexImage2D warp:\n", err );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 
 		glGenTextures( 1, &m_texBlend );
@@ -461,7 +461,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glGenTextures:\n", err );
-			throw VWB_ERROR_BLEND;
+			return VWB_ERROR_BLEND;
 		}
 		glActiveTexture( GL_TEXTURE0 );
 		glBindTexture( GL_TEXTURE_2D, m_texBlend );
@@ -476,7 +476,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexImage2D blend:\n", err );
-			throw VWB_ERROR_BLEND;
+			return VWB_ERROR_BLEND;
 		}
 
 		glGenTextures( 1, &m_texBlack );
@@ -484,7 +484,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glGenTextures:\n", err );
-			throw VWB_ERROR_BLEND;
+			return VWB_ERROR_BLEND;
 		}
 		glActiveTexture( GL_TEXTURE0 );
 		glBindTexture( GL_TEXTURE_2D, m_texBlack );
@@ -500,7 +500,7 @@ VWB_ERROR GLWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		if( GL_NO_ERROR != err )
 		{
 			logStr( 0, "ERROR: %d at glTexImage2D blend:\n", err );
-			throw VWB_ERROR_BLEND;
+			return VWB_ERROR_BLEND;
 		}
 
 		logStr( 1, "SUCCESS: OGL-Warper initialized.\n" );

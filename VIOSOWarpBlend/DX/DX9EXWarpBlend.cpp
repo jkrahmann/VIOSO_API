@@ -87,7 +87,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			SAFERELEASE( texTmpB );
 			SAFERELEASE( texTmpBl );
 			logStr( 0, "ERROR: Failed to create lookup textures.\n" );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
 		const size_t sz = size_t( m_sizeMap.cx ) * m_sizeMap.cy;
@@ -97,7 +97,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{
 			SAFERELEASE(texTmpW);
 			logStr( 0, "ERROR: Failed to fill temp texture for blend.\n" );
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 		if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
 		{
@@ -117,14 +117,14 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{
 			SAFERELEASE(texTmpB);
 			logStr(0, "ERROR: Failed to update warp texture.\n");
-			throw VWB_ERROR_WARP;
+			return VWB_ERROR_WARP;
 		}
 
         if( FAILED(texTmpB->LockRect( 0, &r, NULL, 0 ) ) )
 		{
 			SAFERELEASE(texTmpB);
 			logStr( 0, "ERROR: Failed to fill temp texture for blend.\n" );
-			throw VWB_ERROR_BLEND;
+			return VWB_ERROR_BLEND;
 		}
 		memcpy( r.pBits, wb.pBlend2, sizeof( *wb.pBlend2 ) * sz );
 		texTmpB->UnlockRect(0);
@@ -132,7 +132,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 		{
 			SAFERELEASE(texTmpB);
 				logStr(0, "ERROR: Failed to update warp texture.\n");
-				throw VWB_ERROR_WARP;
+				return VWB_ERROR_WARP;
 		}
 
 		if( wb.pBlack )
@@ -141,7 +141,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			{
 				SAFERELEASE( texTmpBl );
 				logStr( 0, "ERROR: Failed to fill temp texture for black level correction.\n" );
-				throw VWB_ERROR_BLEND;
+				return VWB_ERROR_BLEND;
 			}
 			memcpy( r.pBits, wb.pBlack, sizeof( *wb.pBlack ) * sz );
 			texTmpBl->UnlockRect( 0 );
@@ -149,7 +149,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			{
 				SAFERELEASE( texTmpBl );
 				logStr( 0, "ERROR: Failed to update warp texture.\n" );
-				throw VWB_ERROR_WARP;
+				return VWB_ERROR_WARP;
 			}
 		}
 		SAFERELEASE( texTmpW );
@@ -180,7 +180,7 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 			if( FAILED( hr ) )
 			{
 				logStr( 0, "ERROR: Failed to create shader!\n" );
-				throw VWB_ERROR_SHADER;
+				return VWB_ERROR_SHADER;
 			}
 			logStr( 2, "INFO: Pixelshader created.\n" );
 		}
@@ -191,14 +191,14 @@ VWB_ERROR DX9EXWarpBlend::Init( VWB_WarpBlendSet& wbs )
 				logStr( 0, "ERROR: Failed to compile shader %s!\n", (char*)pErr->GetBufferPointer() );
 				pErr->Release();
 			}
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 
         m_VertexBuffer = CreateVertexBuffer(static_cast<float>(m_sizeMap.cx), static_cast<float>(m_sizeMap.cy));
 		if( !m_VertexBuffer)
 		{
 			logStr( 0, "ERROR: Failed to create vertex buffer.\n" );
-			throw VWB_ERROR_SHADER;
+			return VWB_ERROR_SHADER;
 		}
 		logStr( 1, "SUCCESS: DX9-Warper initialized.\n" );
 

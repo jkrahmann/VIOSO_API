@@ -60,9 +60,9 @@ typedef enum VWB_STATEMASK
 	VWB_STATEMASK_SHADER_RESOURCE = 0x00000100, // shader resource 0 to 2 or texture register t0 to t2
 	VWB_STATEMASK_SAMPLER = 0x00001000, // Sampler state resource 0 to 2 in DX10 and later, DX9 sampler state is captured in state block
 	VWB_STATEMASK_CLEARBACKBUFFER = 0x00002000, // set to clear backbuffer
-	VWB_STATEMASK_COPYBUFFER = 0x00004000, // DX12 only, do a copy of the provided buffer; you would do this, if you provide current backbuffer as input
 	VWB_STATEMASK_ALL = 0x1FFFFFFF, // All
-	VWB_STATEMASK_DEFAULT = VWB_STATEMASK_VERTEX_BUFFER | VWB_STATEMASK_INPUT_LAYOUT | VWB_STATEMASK_PRIMITIVE_TOPOLOGY | VWB_STATEMASK_RASTERSTATE
+	VWB_STATEMASK_DEFAULT = VWB_STATEMASK_VERTEX_BUFFER | VWB_STATEMASK_INPUT_LAYOUT | VWB_STATEMASK_PRIMITIVE_TOPOLOGY | VWB_STATEMASK_RASTERSTATE,
+	VWB_STATEMASK_DEFAULT_D3D12 = 0
 } VWB_STATEMASK;
 
 /** The warper
@@ -573,7 +573,15 @@ typedef struct VWB_WarpBlendMesh // a triangle list mesh
 	VWB_size dim;  // the dimension of the calibrated display in pixels
 }VWB_WarpBlendMesh;
 
-//#ifdef WIN32
+#ifdef WIN32
+#include <Unknwn.h>
+typedef struct VWB_D3D12_RENDERINPUT
+{
+	IUnknown* textureResource; // ID3D12Resource*, if NULL we use rendertarget as source and issue a copy, must be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state
+	IUnknown* renderTarget; // ID3D12Resource* must be set to add a barrier to command list or to use as copy source, must be in D3D12_RESOURCE_STATE_PRESENT state
+	UINT64    rtvHandlePtr; // ptr value from D3D12_CPU_DESCRIPTOR_HANDLE of render target descriptor heap
+} VWB_D3D12_RENDERINPUT;
+
 //typedef struct VWB_D3D12Helper
 //{
 //	typedef UINT64( __stdcall *pfn_getfenceValue )( );
@@ -590,7 +598,7 @@ typedef struct VWB_WarpBlendMesh // a triangle list mesh
 //		, pDxCommandQueue( _pDxCommandQueue )
 //	{}
 //} VWB_D3D12Helper;
-//#endif //def WIN32
+#endif //def WIN32
 #pragma pack(pop)
 
 
