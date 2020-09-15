@@ -42,10 +42,10 @@ MkPath(char* path, VWB_uint nMaxPath, char const* ext = NULL);
 /// in case a key is not found in the section, the default value is copied,
 /// if szDefault is NULL, an empty string is returned
 bool 
-GetIniString(char const* szSection, char const* szKey, char* szDefault, char* s, VWB_uint sz, char const* szConfigFile);
+GetIniString(char const* szSection, char const* szKey, char const* szDefault, char* s, VWB_uint sz, char const* szConfigFile);
 template<size_t sz>
 bool
-GetIniString(char const* szSection, char const* szKey, char* szDefault, char(&s)[sz], char const* szConfigFile)
+GetIniString(char const* szSection, char const* szKey, char const* szDefault, char(&s)[sz], char const* szConfigFile)
 { return GetIniString(szSection, szKey, szDefault, s, sz, szConfigFile); }
 
 /// @brief reads an integer from a Windows ini style text file

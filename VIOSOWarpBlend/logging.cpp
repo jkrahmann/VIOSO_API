@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
-
 char g_logFilePath[MAX_PATH] = {0};
 VWB_int g_logLevel = 2;
 
@@ -54,13 +53,17 @@ int logStr( VWB_int level, char const* format, ... )
 			
 			time_t t;
 			time( &t );
-			struct tm tm = *localtime( &t );
-			int n = sprintf(dest, "%02d:%02d:%02d ", tm.tm_hour, tm.tm_min, tm.tm_sec );
+			struct tm tm;
+			localtime_s( &tm, &t );
+			int n = sprintf_s(dest, "%02d:%02d:%02d ", tm.tm_hour, tm.tm_min, tm.tm_sec );
             va_start( params, format );
-            vsprintf(&dest[n], format, params);
+            vsprintf_s(&dest[n], 1024 * 64 - n, format, params);
             va_end(params);
             
             fputs( dest, f );
+#if defined(WIN32) && defined(_DEBUG)
+			_CrtDbgReport( _CRT_WARN, NULL, 0, NULL, "%s", dest );
+#endif //  defined(WIN32) && defined(_DEBUG)
             fputs("\n", f);
 			if( f != stdout && f != stderr )
 			{
@@ -79,8 +82,8 @@ void logClear()
 {
 	FILE* f = NULL;
 	char szBakFile[MAX_PATH];
-	strcpy( szBakFile, g_logFilePath );
-	strcat( szBakFile, ".bak" );
+	strcpy_s( szBakFile, g_logFilePath );
+	strcat_s( szBakFile, ".bak" );
 	remove( szBakFile );
 	rename( g_logFilePath, szBakFile );
 

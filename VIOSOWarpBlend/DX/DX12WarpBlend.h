@@ -11,7 +11,7 @@ protected:
 	ID3D12CommandQueue*			m_cq;				// the command queue
 	ID3D12Device*				m_device;           // the d3d device
 	ID3D12DescriptorHeap*		m_srvHeap;			// the heap of shader resource views
-	ID3D12DescriptorHeap*		m_samHeap;			// the heap of sampler views
+//	ID3D12DescriptorHeap*		m_samHeap;			// the heap of sampler views
 	ID3D12CommandAllocator*		m_ca;               // the command allocator
 	ID3D12GraphicsCommandList*	m_cl;				// the command list
 	ID3D12RootSignature*		m_rootSignature;    // the root signature
@@ -24,6 +24,7 @@ protected:
 	ID3D12Resource*				m_texCur;
 	ID3D12Resource*				m_texBB;
 	ID3D12Resource*				m_cb; // the constant buffer
+	void*						m_cbMap; // the constant buffer map address
 
 	//ID3D11ShaderResourceView*	m_texWarp;          // the warp lookup texture, in case of 3D it contains the real world 3D coordinates of the screen
 	//ID3D11ShaderResourceView*	m_texBlend;         // the blend lookup texture view

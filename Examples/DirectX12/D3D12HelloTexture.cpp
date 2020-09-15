@@ -13,6 +13,8 @@
 #include "D3D12HelloTexture.h"
 #include <sstream>
 
+HMODULE g_hModDll = NULL;
+
 #ifdef USE_VIOSO_API
 #define VIOSOWARPBLEND_DYNAMIC_IMPLEMENT
 #include "../../Include/VIOSOWarpBlend.h"
@@ -25,7 +27,8 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
     m_frameIndex(0),
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-    m_rtvDescriptorSize(0)
+    m_rtvDescriptorSize(0),
+    m_constantBufferMap( NULL )
 {
 }
 
@@ -37,14 +40,13 @@ void D3D12HelloTexture::OnInit()
     #define VIOSOWARPBLEND_DYNAMIC_INITIALIZE
 	#include "../../Include/VIOSOWarpBlend.h"
 
-	if(
-		VWB_Create &&
-		VWB_Init &&
-		VWB_ERROR_NONE == VWB_Create( m_commandQueue.Get(), s_configFile, s_channel, &m_warper, 0, NULL ) &&
-		VWB_ERROR_NONE == VWB_Init( m_warper )
-		)
-	{
-	}
+    if(
+        nullptr == VWB_Create ||
+        nullptr == VWB_Init ||
+        VWB_ERROR_NONE != VWB_Create( m_commandQueue.Get(), s_configFile, s_channel, &m_warper, 0, NULL ) ||
+        VWB_ERROR_NONE != VWB_Init( m_warper )
+        )
+        throw std::runtime_error( "Failed to initialize VIOSO Warper" );
 #endif //def USE_VIOSO_API
 }
 
@@ -185,26 +187,31 @@ void D3D12HelloTexture::LoadAssets()
         CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[1];
-        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+        CD3DX12_ROOT_PARAMETER1 rootParameters[2];
+        rootParameters[0].InitAsDescriptorTable( 1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL );
+        rootParameters[1].InitAsConstantBufferView( 0 );
 
-        D3D12_STATIC_SAMPLER_DESC sampler = {};
-        sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.MipLODBias = 0;
-        sampler.MaxAnisotropy = 0;
-        sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-        sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-        sampler.MinLOD = 0.0f;
-        sampler.MaxLOD = D3D12_FLOAT32_MAX;
-        sampler.ShaderRegister = 0;
-        sampler.RegisterSpace = 0;
-        sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        D3D12_STATIC_SAMPLER_DESC samplers[] =
+        {
+            {
+                D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+                D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                0,
+                0,
+                D3D12_COMPARISON_FUNC_NEVER,
+                D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+                0.0f,
+                D3D12_FLOAT32_MAX,
+                0,
+                0,
+                D3D12_SHADER_VISIBILITY_ALL
+            },
+         };
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        rootSignatureDesc.Init_1_1( _countof( rootParameters ), rootParameters, _countof( samplers ), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT );
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
@@ -260,9 +267,9 @@ void D3D12HelloTexture::LoadAssets()
         // Define the geometry for a triangle.
         Vertex triangleVertices[] =
         {
-            { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 0.5f, 0.0f } },
-            { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 1.0f, 1.0f } },
-            { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f } }
+            { { 0.0f, 0.25f * m_aspectRatio, -1.0f }, { 0.5f, 0.0f } },
+            { { 0.25f, -0.25f * m_aspectRatio, -1.0f }, { 1.0f, 1.0f } },
+            { { -0.25f, -0.25f * m_aspectRatio, -1.0f }, { 0.0f, 1.0f } }
         };
 
         const UINT vertexBufferSize = sizeof(triangleVertices);
@@ -290,6 +297,29 @@ void D3D12HelloTexture::LoadAssets()
         m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
         m_vertexBufferView.StrideInBytes = sizeof(Vertex);
         m_vertexBufferView.SizeInBytes = vertexBufferSize;
+    }
+
+    // Create the constant buffer.
+    {
+        const UINT cbSize = sizeof( ConstantBuffer );
+        const UINT cbBuffSize = ( cbSize + 255 ) & ~255U;
+
+        // Note: using upload heaps to transfer static data like vert buffers is not 
+        // recommended. Every time the GPU needs it, the upload heap will be marshalled 
+        // over. Please read up on Default Heap usage. An upload heap is used here for 
+        // code simplicity and because there are very few verts to actually transfer.
+        ThrowIfFailed( m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer( cbBuffSize ),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS( &m_constantBuffer ) ) );
+
+        // just map the buffer and keep it mapped
+        CD3DX12_RANGE readRange( 0, 0 );        // We do not intend to read from this resource on the CPU.
+        ThrowIfFailed( m_vertexBuffer->Map( 0, &readRange, reinterpret_cast<void**>( &m_constantBufferMap ) ) );
+        m_constantBufferMap->matWorld = XMMatrixIdentity();
     }
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -450,6 +480,7 @@ void D3D12HelloTexture::OnDestroy()
     WaitForPreviousFrame();
 
     CloseHandle(m_fenceEvent);
+    m_constantBuffer->Unmap( 0, NULL );
 }
 
 void D3D12HelloTexture::PopulateCommandList()
@@ -470,7 +501,21 @@ void D3D12HelloTexture::PopulateCommandList()
     ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get() };
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-    m_commandList->SetGraphicsRootDescriptorTable(0, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    #ifdef USE_VIOSO_API
+        XMFLOAT3 eye( 0,0,0 );
+        XMFLOAT3 rot( 0,0,0 );
+        XMMATRIX p, v;
+        VWB_getViewProj( m_warper, &eye.x, &rot.x, &v.r[0].m128_f32[0], &p.r[0].m128_f32[0] );
+        m_constantBufferMap->matView = XMMatrixTranspose( v );
+        m_constantBufferMap->matProj = XMMatrixTranspose( p );
+    #else
+        m_constantBufferMap->matView = XMMatrixIdentity();
+        m_constantBufferMap->matProj = XMMatrixPerspectiveLH( 0.25f, 0.25f / 16 * 9, 0.25f, 4096.0f );
+    };
+    #endif
+
+    m_commandList->SetGraphicsRootDescriptorTable( 0, m_srvHeap->GetGPUDescriptorHandleForHeapStart() );
+    m_commandList->SetGraphicsRootConstantBufferView( 1, m_constantBuffer->GetGPUVirtualAddress() );
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 

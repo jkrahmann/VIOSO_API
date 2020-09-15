@@ -60,13 +60,13 @@ VWB_ERROR VWB_Warper_base::ReadIniFile( char const* szConfigFile, char const* sz
 	if( szConfigFile && szConfigFile[0] )
 	{
 		Defaults();
-		strcpy( path, szConfigFile );
+		strcpy_s( path, szConfigFile );
 		MkPath( path, MAX_PATH, ".ini" );
 
 		if( szChannelName )
-			strcpy( channel, szChannelName );
+			strcpy_s( channel, szChannelName );
 		else
-			strcpy( channel, "default" );
+			strcpy_s( channel, "default" );
 
 		FILE* f = NULL;
 		if( NO_ERROR == fopen_s( &f, path, "r" ) )
@@ -236,7 +236,7 @@ VWB_ERROR VWB_Warper_base::ReadIniFile( char const* szConfigFile, char const* sz
 		if( GetIniInt( channel, "debugBreak", iDef, path ) )
 		{
 #ifdef WIN32
-			MessageBox( NULL, "BREAK", "DEBUG", MB_OK );
+			MessageBoxA( NULL, "BREAK", "DEBUG", MB_OK );
 #else
 #endif
 		}
@@ -256,9 +256,9 @@ VWB_ERROR VWB_CreateA( void* pDxDevice, char const* szConfigFile, char const* sz
 	*ppWarper = NULL;
 	g_logLevel = logLevel;
 	if( szLogFile && szLogFile[0] )
-		strcpy( g_logFilePath, szLogFile );
+		strcpy_s( g_logFilePath, szLogFile );
 	else
-		strcpy( g_logFilePath, "VIOSOWarpBlend" );
+		strcpy_s( g_logFilePath, "VIOSOWarpBlend" );
 	MkPath( g_logFilePath, MAX_PATH, ".log" );
 
 	try {
@@ -365,15 +365,16 @@ VWB_ERROR VWB_CreateA( void* pDxDevice, char const* szConfigFile, char const* sz
 	else
 	{
 		if( NULL != szChannelName && 0 != szChannelName[0] )
-			strcpy( ((VWB_Warper_base*)*ppWarper)->channel, szChannelName );
+			strcpy_s( ((VWB_Warper_base*)*ppWarper)->channel, szChannelName );
 		else
-			strcpy( ((VWB_Warper_base*)*ppWarper)->channel, "default" );
+			strcpy_s( ((VWB_Warper_base*)*ppWarper)->channel, "default" );
 	}
 
 	{
 		time_t t;
 		time( &t );
-		struct tm tm = *localtime( &t );
+		struct tm tm;
+		localtime_s( &tm, &t );
 		logStr( 1, "%04d/%02d/%02d VIOSOWarpBlend API %d.%d.%d.%d.\n", 1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, VWB_Version_MAJ, VWB_Version_MIN, VWB_Version_MAI, VWB_Version_REV );
 
 		char* szModPath = NULL;
@@ -461,17 +462,17 @@ VWB_ERROR VWB_CreateW( void* pDxDevice, wchar_t const* szConfigFile, wchar_t con
 		char* pszLF = NULL;
 		if( szConfigFile )
 		{
-			wcstombs( szCF, szConfigFile, MAX_PATH );
+			wcstombs_s( NULL, szCF, szConfigFile, MAX_PATH );
 			pszCF = szCF;
 		}
 		if( szChannelName )
 		{
-			wcstombs( szCN, szChannelName, MAX_PATH );
+			wcstombs_s( NULL, szCN, szChannelName, MAX_PATH );
 			pszCN = szCN;
 		}
 		if( szLogFile )
 		{
-			wcstombs(szLF, szLogFile, MAX_PATH );
+			wcstombs_s( NULL, szLF, szLogFile, MAX_PATH );
 			pszLF = szLF;
 		}
 		return VWB_CreateA( pDxDevice, pszCF, pszCN, ppWarper, logLevel, pszLF );
@@ -796,7 +797,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 	}
 
 #ifdef WIN32
-	ShowSystemCursor = reinterpret_cast<FPtrInt_BOOL>(::GetProcAddress(::GetModuleHandle("user32.dll"), "ShowSystemCursor"));
+	ShowSystemCursor = reinterpret_cast<FPtrInt_BOOL>(::GetProcAddress(::GetModuleHandleA("user32.dll"), "ShowSystemCursor"));
 	if (nullptr == ShowSystemCursor)
 	{
 		logStr(1, "WARNING: Could not find ShowSystemCursor function.");
@@ -832,131 +833,10 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 	m_bRH = 0 < VWB_VEC3f(B.Z()).dot( VWB_VEC3f(B.X()) * VWB_VEC3f(B.Y()) );
 	logStr( 2, "%s-handedness detected.\n", m_bRH ? "right" : "left" );
 
-	// sanity check
-	if( 1024 > m_sizeMap.cx * m_sizeMap.cx )
+	ret = PrepareForUse( wb, gamma );
+	if( VWB_ERROR_NONE != ret )
 	{
-		logStr( 0, "ERROR: mapping too small. Probably a faulty mapping file.\n" );
-		return VWB_ERROR_VWF_LOAD;
-	}
-
-	if( NULL == wb.pWarp )
-	{
-		logStr( 0, "ERROR: Warp texture missing. Seriously.\n" );
-		return VWB_ERROR_WARP;
-	}
-
-	if( NULL == wb.pBlend )
-	{
-		logStr( 1, "WARNING: Blend texture missing. Creating...\n" );
-		wb.pBlend2 = new VWB_BlendRecord2[m_sizeMap.cx * m_sizeMap.cy];
-		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++ )
-		{
-			p->r = 65535;
-			p->g = 65535;
-			p->b = 65535;
-		}
-		wb.header.flags&= ~FLAG_WARPFILE_HEADER_BLENDV3;
-		wb.header.flags|=  FLAG_WARPFILE_HEADER_BLENDV2;
-	}
-
-	// regardless of the given format, prepare blend as U16 NORM
-	// if gamma is set, apply gamma and promote blend to VWB_BlendRecord2
-	if( 0.0f < gamma && 1.0f != gamma )
-	{
-		logStr( 1, "Adapting gamma by %.5f\n", gamma );
-		VWB_float g = 1.0f/gamma;
-		if( wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV3 )
-		{
-			VWB_BlendRecord2* pDst = new VWB_BlendRecord2[m_sizeMap.cx * m_sizeMap.cy];
-			VWB_BlendRecord2* pD = pDst;
-			for( VWB_BlendRecord3* p = wb.pBlend3, *pE = wb.pBlend3 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pD++ )
-			{
-				pD->r = VWB_word( pow( p->r, g ) * 65535.0f );
-				pD->g = VWB_word( pow( p->g, g ) * 65535.0f );
-				pD->b = VWB_word( pow( p->b, g ) * 65535.0f );
-				pD->a = VWB_word( p->a * 65535.0f );
-			}
-			wb.header.flags&= ~FLAG_WARPFILE_HEADER_BLENDV3;
-			wb.header.flags|= FLAG_WARPFILE_HEADER_BLENDV2;
-			delete[] wb.pBlend3;
-			wb.pBlend2 = pDst;
-		}
-		else if( wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV2 )
-		{
-			for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++ )
-			{
-				p->r = VWB_word( pow( VWB_float( p->r ) / 65535.0f, g ) * 65535.0f );
-				p->g = VWB_word( pow( VWB_float( p->g ) / 65535.0f, g ) * 65535.0f );
-				p->b = VWB_word( pow( VWB_float( p->b ) / 65535.0f, g ) * 65535.0f );
-				// p->a stays untouched
-			}
-		}
-		else
-		{
-			VWB_BlendRecord2* pDst = new VWB_BlendRecord2[m_sizeMap.cx * m_sizeMap.cy];
-			VWB_BlendRecord2* pD = pDst;
-			for( VWB_BlendRecord* p = wb.pBlend, *pE = wb.pBlend + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pD++ )
-			{
-				pD->r = VWB_word( pow( VWB_float( p->r ) / 255.0f, g ) * 65535.0f );
-				pD->g = VWB_word( pow( VWB_float( p->g ) / 255.0f, g ) * 65535.0f );
-				pD->b = VWB_word( pow( VWB_float( p->b ) / 255.0f, g ) * 65535.0f );
-				pD->a = VWB_word( p->a ) * 255;
-			}
-			wb.header.flags|= FLAG_WARPFILE_HEADER_BLENDV2;
-			delete[] wb.pBlend;
-			wb.pBlend2 = pDst;
-		}
-	}
-	else if( !(wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV2) )
-	{ // change to VWB_BlendRecord2 anyway...
-		if( wb.header.flags & FLAG_WARPFILE_HEADER_BLENDV3 )
-		{
-			VWB_BlendRecord2* pDst = new VWB_BlendRecord2[m_sizeMap.cx * m_sizeMap.cy];
-			VWB_BlendRecord2* pD = pDst;
-			for( VWB_BlendRecord3* p = wb.pBlend3, *pE = wb.pBlend3 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pD++ )
-			{
-				pD->r = VWB_word( p->r * 65535.0f );
-				pD->g = VWB_word( p->g * 65535.0f );
-				pD->b = VWB_word( p->b * 65535.0f );
-				pD->a = VWB_word( p->a * 65535.0f );
-			}
-			wb.header.flags&= ~FLAG_WARPFILE_HEADER_BLENDV3;
-			wb.header.flags|=  FLAG_WARPFILE_HEADER_BLENDV2;
-			delete[] wb.pBlend3;
-			wb.pBlend2 = pDst;
-		}
-		else
-		{
-			VWB_BlendRecord2* pDst = new VWB_BlendRecord2[m_sizeMap.cx * m_sizeMap.cy];
-			VWB_BlendRecord2* pD = pDst;
-			for( VWB_BlendRecord* p = wb.pBlend, *pE = wb.pBlend + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pD++ )
-			{
-				pD->r = VWB_word( p->r * 255.0f );
-				pD->g = VWB_word( p->g * 255.0f );
-				pD->b = VWB_word( p->b * 255.0f );
-				pD->a = VWB_word( p->a * 255.0f );
-			}
-			wb.header.flags|=  FLAG_WARPFILE_HEADER_BLENDV2;
-			delete[] wb.pBlend;
-			wb.pBlend2 = pDst;
-		}
-	}
-
-	// put clipping channel of warp to a channel of blend
-		VWB_WarpRecord* pW = wb.pWarp;
-	if( wb.header.flags & FLAG_WARPFILE_HEADER_3D )
-	{
-		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
-		{
-			p->a = pW->w * 65535.0f;
-		}
-	}
-	else
-	{
-		for( VWB_BlendRecord2* p = wb.pBlend2, *pE = wb.pBlend2 + m_sizeMap.cx * m_sizeMap.cy; p != pE; p++, pW++ )
-		{
-			p->a = pW->z * 65535.0f;
-		}
+		return ret;
 	}
 
 	if( 0 == ( wb.header.flags & FLAG_WARPFILE_HEADER_3D ) )
@@ -1001,7 +881,7 @@ VWB_ERROR VWB_Warper_base::Init( VWB_WarpBlendSet& wbs )
 	if( eyeProvider[0] )
 	{
 		char p[MAX_PATH] = {0};
-		strcpy( p, eyeProvider );
+		strcpy_s( p, eyeProvider );
 #ifdef WIN32
 		m_hmEPP = LoadLibraryA( p );
 		if( 0 == m_hmEPP )
@@ -1264,8 +1144,8 @@ void VWB_Warper_base::Defaults()
 	size_t sz1 = sizeof( VWB_Warper );
 	size_t sz2 = sizeof( VWB_Warper_base );
 	::memset( &this->path, 0, sz1 );
-	strcpy( calibFile, "vioso.vwf" );
-	strcpy( channel, "channel 1" );
+	strcpy_s( calibFile, "vioso.vwf" );
+	strcpy_s( channel, "channel 1" );
 	nearDist = 0.1f;
 	farDist = 200.0f;
 	fov[0]=30;

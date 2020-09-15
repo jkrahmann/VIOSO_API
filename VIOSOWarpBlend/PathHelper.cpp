@@ -168,7 +168,7 @@ char* MkPath(char* path, VWB_uint nMaxPath, char const* ext)
 	return path;
 }
 
-bool GetIniString(char const* szSection, char const* szKey, char* szDefault, char* s, VWB_uint sz, char const* szConfigFile)
+bool GetIniString(char const* szSection, char const* szKey, char const* szDefault, char* s, VWB_uint sz, char const* szConfigFile)
 {
 	bool bRet = false;
 	FILE* f = NULL;

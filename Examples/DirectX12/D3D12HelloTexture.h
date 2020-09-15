@@ -50,6 +50,13 @@ private:
         XMFLOAT2 uv;
     };
 
+    struct ConstantBuffer
+    {
+        XMMATRIX matWorld;
+        XMMATRIX matView;
+        XMMATRIX matProj;
+    };
+
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -67,6 +74,9 @@ private:
 
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
+    
+    ComPtr<ID3D12Resource> m_constantBuffer;
+    ConstantBuffer* m_constantBufferMap;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
     ComPtr<ID3D12Resource> m_texture;
 

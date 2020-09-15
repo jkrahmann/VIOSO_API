@@ -1,5 +1,7 @@
 #ifndef VWB_WIN7_COMPAT
 #include "DX12WarpBlend.h"
+#include "../3rdparty/d3dX/Include/d3dx12.h"
+
 
 #include "pixelshader.h"
 #include "atlbase.h"
@@ -22,6 +24,7 @@ DX12WarpBlend::DX12WarpBlend( ID3D12CommandQueue* pCQ )
 , m_texCur( NULL )
 , m_texBB( NULL )
 , m_cb( NULL )
+, m_cbMap( NULL )
 {
 	if( NULL == pCQ )
 		throw( VWB_ERROR_PARAMETER );
@@ -39,6 +42,8 @@ DX12WarpBlend::~DX12WarpBlend(void)
 	SAFERELEASE( m_texBlack );
 	SAFERELEASE( m_texCur );
 	SAFERELEASE( m_texBB );
+	if( m_cb && m_cbMap )
+		m_cb->Unmap( 0, nullptr );
 	SAFERELEASE( m_cb );
 	SAFERELEASE( m_vertexBuffer );
 	SAFERELEASE( m_pipelineState );
@@ -49,153 +54,12 @@ DX12WarpBlend::~DX12WarpBlend(void)
 	logStr( 1, "INFO: DX11-Warper destroyed.\n" );
 }
 
-//------------------------------------------------------------------------------------------------
-// Row-by-row memcpy
-inline void MemcpySubresource(
-	_In_ const D3D12_MEMCPY_DEST* pDest,
-	_In_ const D3D12_SUBRESOURCE_DATA* pSrc,
-	SIZE_T RowSizeInBytes,
-	UINT NumRows,
-	UINT NumSlices )
-{
-	for( UINT z = 0; z < NumSlices; ++z )
-	{
-		BYTE* pDestSlice = reinterpret_cast<BYTE*>( pDest->pData ) + pDest->SlicePitch * z;
-		const BYTE* pSrcSlice = reinterpret_cast<const BYTE*>( pSrc->pData ) + pSrc->SlicePitch * z;
-		for( UINT y = 0; y < NumRows; ++y )
-		{
-			memcpy( pDestSlice + pDest->RowPitch * y,
-					pSrcSlice + pSrc->RowPitch * y,
-					RowSizeInBytes );
-		}
-	}
-}
-
-//------------------------------------------------------------------------------------------------
-// All arrays must be populated (e.g. by calling GetCopyableFootprints)
-inline UINT64 UpdateSubresources(
-	_In_ ID3D12GraphicsCommandList* pCmdList,
-	_In_ ID3D12Resource* pDestinationResource,
-	_In_ ID3D12Resource* pIntermediate,
-	_In_range_( 0, D3D12_REQ_SUBRESOURCES ) UINT FirstSubresource,
-	_In_range_( 0, D3D12_REQ_SUBRESOURCES - FirstSubresource ) UINT NumSubresources,
-	UINT64 RequiredSize,
-	_In_reads_( NumSubresources ) const D3D12_PLACED_SUBRESOURCE_FOOTPRINT* pLayouts,
-	_In_reads_( NumSubresources ) const UINT* pNumRows,
-	_In_reads_( NumSubresources ) const UINT64* pRowSizesInBytes,
-	_In_reads_( NumSubresources ) const D3D12_SUBRESOURCE_DATA* pSrcData )
-{
-	// Minor validation
-	auto IntermediateDesc = pIntermediate->GetDesc();
-	auto DestinationDesc = pDestinationResource->GetDesc();
-	if( IntermediateDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER ||
-		IntermediateDesc.Width < RequiredSize + pLayouts[0].Offset ||
-		RequiredSize > SIZE_T( -1 ) ||
-		( DestinationDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER &&
-		  ( FirstSubresource != 0 || NumSubresources != 1 ) ) )
-	{
-		return 0;
-	}
-
-	BYTE* pData;
-	HRESULT hr = pIntermediate->Map( 0, nullptr, reinterpret_cast<void**>( &pData ) );
-	if( FAILED( hr ) )
-	{
-		return 0;
-	}
-
-	for( UINT i = 0; i < NumSubresources; ++i )
-	{
-		if( pRowSizesInBytes[i] > SIZE_T( -1 ) ) return 0;
-		D3D12_MEMCPY_DEST DestData = { pData + pLayouts[i].Offset, pLayouts[i].Footprint.RowPitch, SIZE_T( pLayouts[i].Footprint.RowPitch ) * SIZE_T( pNumRows[i] ) };
-		MemcpySubresource( &DestData, &pSrcData[i], static_cast<SIZE_T>( pRowSizesInBytes[i] ), pNumRows[i], pLayouts[i].Footprint.Depth );
-	}
-	pIntermediate->Unmap( 0, nullptr );
-
-	if( DestinationDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER )
-	{
-		pCmdList->CopyBufferRegion(
-			pDestinationResource, 0, pIntermediate, pLayouts[0].Offset, pLayouts[0].Footprint.Width );
-	}
-	else
-	{
-		for( UINT i = 0; i < NumSubresources; ++i )
-		{
-			const D3D12_TEXTURE_COPY_LOCATION Dst = { pDestinationResource, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX, i + FirstSubresource };
-			const D3D12_TEXTURE_COPY_LOCATION Src = { pIntermediate, D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT, pLayouts[i] };
-			pCmdList->CopyTextureRegion( &Dst, 0, 0, 0, &Src, nullptr );
-		}
-	}
-	return RequiredSize;
-}
-
-//------------------------------------------------------------------------------------------------
-// Stack-allocating UpdateSubresources implementation
-template <UINT MaxSubresources>
-inline UINT64 UpdateSubresources(
-	_In_ ID3D12GraphicsCommandList* pCmdList,
-	_In_ ID3D12Resource* pDestinationResource,
-	_In_ ID3D12Resource* pIntermediate,
-	UINT64 IntermediateOffset,
-	_In_range_( 0, MaxSubresources ) UINT FirstSubresource,
-	_In_range_( 1, MaxSubresources - FirstSubresource ) UINT NumSubresources,
-	_In_reads_( NumSubresources ) D3D12_SUBRESOURCE_DATA* pSrcData )
-{
-	UINT64 RequiredSize = 0;
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT Layouts[MaxSubresources];
-	UINT NumRows[MaxSubresources];
-	UINT64 RowSizesInBytes[MaxSubresources];
-
-	auto Desc = pDestinationResource->GetDesc();
-	ID3D12Device* pDevice = nullptr;
-	pDestinationResource->GetDevice( __uuidof( *pDevice ), reinterpret_cast<void**>( &pDevice ) );
-	pDevice->GetCopyableFootprints( &Desc, FirstSubresource, NumSubresources, IntermediateOffset, Layouts, NumRows, RowSizesInBytes, &RequiredSize );
-	pDevice->Release();
-
-	return UpdateSubresources( pCmdList, pDestinationResource, pIntermediate, FirstSubresource, NumSubresources, RequiredSize, Layouts, NumRows, RowSizesInBytes, pSrcData );
-}
-
-//------------------------------------------------------------------------------------------------
-// Heap-allocating UpdateSubresources implementation
-inline UINT64 UpdateSubresources(
-	_In_ ID3D12GraphicsCommandList* pCmdList,
-	_In_ ID3D12Resource* pDestinationResource,
-	_In_ ID3D12Resource* pIntermediate,
-	UINT64 IntermediateOffset,
-	_In_range_( 0, D3D12_REQ_SUBRESOURCES ) UINT FirstSubresource,
-	_In_range_( 0, D3D12_REQ_SUBRESOURCES - FirstSubresource ) UINT NumSubresources,
-	_In_reads_( NumSubresources ) D3D12_SUBRESOURCE_DATA* pSrcData )
-{
-	UINT64 RequiredSize = 0;
-	UINT64 MemToAlloc = static_cast<UINT64>( sizeof( D3D12_PLACED_SUBRESOURCE_FOOTPRINT ) + sizeof( UINT ) + sizeof( UINT64 ) ) * NumSubresources;
-	if( MemToAlloc > SIZE_MAX )
-	{
-		return 0;
-	}
-	void* pMem = HeapAlloc( GetProcessHeap(), 0, static_cast<SIZE_T>( MemToAlloc ) );
-	if( pMem == nullptr )
-	{
-		return 0;
-	}
-	auto pLayouts = reinterpret_cast<D3D12_PLACED_SUBRESOURCE_FOOTPRINT*>( pMem );
-	UINT64* pRowSizesInBytes = reinterpret_cast<UINT64*>( pLayouts + NumSubresources );
-	UINT* pNumRows = reinterpret_cast<UINT*>( pRowSizesInBytes + NumSubresources );
-
-	auto Desc = pDestinationResource->GetDesc();
-	ID3D12Device* pDevice = nullptr;
-	pDestinationResource->GetDevice( __uuidof( *pDevice ), reinterpret_cast<void**>( &pDevice ) );
-	pDevice->GetCopyableFootprints( &Desc, FirstSubresource, NumSubresources, IntermediateOffset, pLayouts, pNumRows, pRowSizesInBytes, &RequiredSize );
-	pDevice->Release();
-
-	UINT64 Result = UpdateSubresources( pCmdList, pDestinationResource, pIntermediate, FirstSubresource, NumSubresources, RequiredSize, pLayouts, pNumRows, pRowSizesInBytes, pSrcData );
-	HeapFree( GetProcessHeap(), 0, pMem );
-	return Result;
-}
 
 HRESULT CreateAndFillTexture( ID3D12Device* dev, ID3D12GraphicsCommandList* cl, D3D12_RESOURCE_DESC const& desc, D3D12_SUBRESOURCE_DATA& data, ID3D12Resource*& tex, std::vector< CComPtr< ID3D12Resource > >& sts, LPCWSTR name = L"" )
 {
 	HRESULT hr = dev->CreateCommittedResource(
-		&D3D12_HEAP_PROPERTIES( { D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 } ),
+		&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_DEFAULT ),
+		//&D3D12_HEAP_PROPERTIES( { D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 } ),
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		D3D12_RESOURCE_STATE_COPY_DEST,
@@ -208,9 +72,11 @@ HRESULT CreateAndFillTexture( ID3D12Device* dev, ID3D12GraphicsCommandList* cl, 
 	CComPtr<ID3D12Resource> uploadHeapTex;
 	// Create the GPU upload buffer.
 	hr = dev->CreateCommittedResource(
-		&D3D12_HEAP_PROPERTIES( { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 } ),
+		&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),
+		//&D3D12_HEAP_PROPERTIES( { D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 } ),
 		D3D12_HEAP_FLAG_NONE,
-		&D3D12_RESOURCE_DESC( { D3D12_RESOURCE_DIMENSION_BUFFER, 0, uploadBufferSize, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1,0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR, D3D12_RESOURCE_FLAG_NONE } ),
+		&CD3DX12_RESOURCE_DESC::Buffer( uploadBufferSize ),
+		//&D3D12_RESOURCE_DESC( { D3D12_RESOURCE_DIMENSION_BUFFER, 0, uploadBufferSize, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1,0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR, D3D12_RESOURCE_FLAG_NONE } ),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS( &uploadHeapTex ) );
@@ -233,9 +99,10 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 	{
 		// Describe and create a shader resource view (SRV) heap for the texture.
 		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-		heapDesc.NumDescriptors = 6;
+		heapDesc.NumDescriptors = 5;
 		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		heapDesc.NodeMask = 0;
 
 		if( FAILED( m_device->CreateDescriptorHeap( &heapDesc, IID_PPV_ARGS( &m_srvHeap ) ) ) )
 		{
@@ -243,16 +110,6 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			return VWB_ERROR_GENERIC;
 		}
 		m_srvHeap->SetName( L"VWB_srvheap" );
-
-		heapDesc.NumDescriptors = 2;
-		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		if( FAILED( m_device->CreateDescriptorHeap( &heapDesc, IID_PPV_ARGS( &m_samHeap ) ) ) )
-		{
-			logStr( 0, "FATAL ERROR: Failed to create sampler descriptor heap.\n" );
-			return VWB_ERROR_GENERIC;
-		}
-		m_samHeap->SetName( L"VWB_samheap" );
 
 		{
 			D3D12_FEATURE_DATA_ROOT_SIGNATURE sig = { D3D_ROOT_SIGNATURE_VERSION_1 };
@@ -263,35 +120,12 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				return VWB_ERROR_GENERIC;
 			}
 
-			D3D12_DESCRIPTOR_RANGE1 ranges[] =
-			{
-				{
-					D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
-					1, 0, 0,
-					D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-					0
-				},
-				{
-					D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-					5, 0, 0,
-					D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC,
-					D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
-				}
-			};
-
-			D3D12_ROOT_PARAMETER1 rootParameters[] =
-			{
-				{
-					D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-					{ 1, &ranges[0] },
-					D3D12_SHADER_VISIBILITY_ALL
-				},
-				{
-					D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-					{ 1, &ranges[1] },
-					D3D12_SHADER_VISIBILITY_PIXEL
-				}
-			};
+			CD3DX12_DESCRIPTOR_RANGE1 ranges1[2] = {};
+			ranges1[0].Init( D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC, 0 );
+			ranges1[1].Init( D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, 4 );
+			CD3DX12_ROOT_PARAMETER1 rootParameters[2] = {};
+			rootParameters[0].InitAsConstantBufferView( 0 );
+			rootParameters[1].InitAsDescriptorTable( _countof( ranges1 ), ranges1, D3D12_SHADER_VISIBILITY_PIXEL );
 
 			D3D12_STATIC_SAMPLER_DESC samplers[] =
 			{
@@ -306,9 +140,9 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 					D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
 					0.0f,
 					D3D12_FLOAT32_MAX,
-					1,
 					0,
-					D3D12_SHADER_VISIBILITY_PIXEL
+					0,
+					D3D12_SHADER_VISIBILITY_ALL
 				},
 				{
 					D3D12_FILTER_MIN_MAG_MIP_POINT,
@@ -321,28 +155,15 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 					D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
 					0.0f,
 					D3D12_FLOAT32_MAX,
+					1,
 					0,
-					0,
-					D3D12_SHADER_VISIBILITY_PIXEL
+					D3D12_SHADER_VISIBILITY_ALL
 				},
 
 			};
 
-			//// create sampler
-			//{
-			//	m_device->CreateSampler( )
-			//}
-			D3D12_ROOT_SIGNATURE_DESC1 rsd =
-			{
-				_countof( rootParameters ),
-				rootParameters,
-				_countof( samplers ),
-				samplers,
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
-			};
-			D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-			rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-			rootSignatureDesc.Desc_1_1 = rsd;
+			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+			rootSignatureDesc.Init_1_1( _countof( rootParameters ), rootParameters, _countof( samplers ), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT );
 			CComPtr< ID3DBlob > signature;
 			CComPtr< ID3DBlob > error;
 
@@ -360,48 +181,6 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			m_rootSignature->SetName( L"VWB_rootsignature" );
 		}
 
-		{
-			// gather viewport information
-			ID3D12Resource* pRV = NULL;
-			/*
-			m_cl->O
-			//m_dc->OMGetRenderTargets( 1, &pVV, NULL );
-			hr = E_FAIL;
-			if( pVV )
-			{
-				ID3D11Resource* pRes = NULL;
-				pVV->GetResource( &pRes );
-				if( pRes )
-				{
-					ID3D11Texture2D* pTex;
-					if( SUCCEEDED( pRes->QueryInterface( __uuidof( ID3D11Texture2D ), (void**)&pTex ) ) )
-					{
-						D3D11_TEXTURE2D_DESC desc;
-						pTex->GetDesc( &desc );
-						pTex->Release();
-
-						m_vp.Width = (FLOAT)desc.Width;
-						m_vp.Height = (FLOAT)desc.Height;
-						m_vp.TopLeftX = 0;
-						m_vp.TopLeftY = 0;
-						m_vp.MinDepth = 0.0f;
-						m_vp.MaxDepth = 1.0f;
-						logStr( 2, "INFO: Output buffer found. Viewport is %.0fx%.0f.\n", m_vp.Width, m_vp.Height );
-						hr = S_OK;
-					}
-					pRes->Release();
-				}
-				pVV->Release();
-			}
-			if( FAILED( hr ) )
-			{
-				logStr( 0, "ERROR: Output buffer not found.\n" );
-				return VWB_ERROR_GENERIC;
-			}
-
-*/
-		}
-
 		// build pipeline
 		{
 			// Define the input layout
@@ -412,16 +191,22 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			};
 
 			// compile shader
+			#if defined(_DEBUG)
+					// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+			#else
+			UINT compileFlags = 0;
+			#endif
 			CComPtr< ID3DBlob > errBlob;
 			CComPtr< ID3DBlob > vsBlob;
 			CComPtr< ID3DBlob > psBlob;
 			if( bFlipDXVs )
 			{
-				hr = D3DCompile( s_pixelShaderDX4_vFlip, sizeof( s_pixelShaderDX4_vFlip ), NULL, NULL, NULL, "VS", "vs_4_0", 0, 0, &vsBlob, &errBlob );
+				hr = D3DCompile( s_pixelShaderDX4_vFlip, sizeof( s_pixelShaderDX4_vFlip ), NULL, NULL, NULL, "VS", "vs_5_0", compileFlags, 0, &vsBlob, &errBlob );
 			}
 			else
 			{
-				hr = D3DCompile( s_pixelShaderDX4, sizeof( s_pixelShaderDX4 ), NULL, NULL, NULL, "VS", "vs_4_0", 0, 0, &vsBlob, &errBlob );
+				hr = D3DCompile( s_pixelShaderDX4, sizeof( s_pixelShaderDX4 ), NULL, NULL, NULL, "VS", "vs_5_0", compileFlags, 0, &vsBlob, &errBlob );
 			}
 			if( FAILED( hr ) )
 			{
@@ -442,11 +227,11 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				pixelShader.append( "BC" );
 			if( bFlipDXVs )
 			{
-				hr = D3DCompile( s_pixelShaderDX4_vFlip, sizeof( s_pixelShaderDX4_vFlip ), NULL, NULL, NULL, pixelShader.c_str(), "ps_4_0", 0, 0, &psBlob, &errBlob );
+				hr = D3DCompile( s_pixelShaderDX4_vFlip, sizeof( s_pixelShaderDX4_vFlip ), NULL, NULL, NULL, pixelShader.c_str(), "ps_5_0", compileFlags, 0, &psBlob, &errBlob );
 			}
 			else
 			{
-				hr = D3DCompile( s_pixelShaderDX4, sizeof( s_pixelShaderDX4 ), NULL, NULL, NULL, pixelShader.c_str(), "ps_4_0", 0, 0, &psBlob, &errBlob );
+				hr = D3DCompile( s_pixelShaderDX4, sizeof( s_pixelShaderDX4 ), NULL, NULL, NULL, pixelShader.c_str(), "ps_5_0", compileFlags, 0, &psBlob, &errBlob );
 			}
 			if( FAILED( hr ) )
 			{
@@ -455,42 +240,21 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			}
 
 			// Describe and create the graphics pipeline state object (PSO).
-			D3D12_GRAPHICS_PIPELINE_STATE_DESC psDesc = {
-				m_rootSignature,													  // ID3D12RootSignature *pRootSignature;
-				{ vsBlob->GetBufferPointer(), vsBlob->GetBufferSize() },              // D3D12_SHADER_BYTECODE VS;
-				{ psBlob->GetBufferPointer(), psBlob->GetBufferSize() },			  // D3D12_SHADER_BYTECODE PS;
-				{ 0 }, { 0 }, { 0 },												  // D3D12_SHADER_BYTECODE DS;D3D12_SHADER_BYTECODE HS;D3D12_SHADER_BYTECODE GS;
-				{0},																  // D3D12_STREAM_OUTPUT_DESC StreamOutput;
-				{ FALSE, FALSE, {													  // D3D12_BLEND_DESC BlendState;
-					TRUE,FALSE,
-					D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-					D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-					D3D12_LOGIC_OP_NOOP,
-					D3D12_COLOR_WRITE_ENABLE_ALL } },
-				UINT_MAX,															  //  UINT SampleMask;
-				{	D3D12_FILL_MODE_SOLID,											  // D3D12_RASTERIZER_DESC RasterizerState;
-					D3D12_CULL_MODE_NONE,
-					FALSE,
-					D3D12_DEFAULT_DEPTH_BIAS,
-					D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-					D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-					TRUE,
-					FALSE,
-					FALSE,
-					0,
-					D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF },
-				{ 0 },																  // D3D12_DEPTH_STENCIL_DESC DepthStencilState;
-				{ layout, _countof( layout ) },										  // D3D12_INPUT_LAYOUT_DESC InputLayout;
-				D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,						  // D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue;
-				D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,								  // D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType;
-				1,																	  // UINT NumRenderTargets;
-				{DXGI_FORMAT_R8G8B8A8_UNORM},										  // DXGI_FORMAT RTVFormats[ 8 ];
-				DXGI_FORMAT_UNKNOWN,												  // DXGI_FORMAT DSVFormat;
-				{ 1, DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 },						  // DXGI_SAMPLE_DESC SampleDesc;
-				0,																	  // UINT NodeMask; 
-				{NULL, 0},															  // D3D12_CACHED_PIPELINE_STATE CachedPSO;
-				D3D12_PIPELINE_STATE_FLAG_NONE										  // D3D12_PIPELINE_STATE_FLAGS Flags;
-			};
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC psDesc = {};
+			psDesc.InputLayout = { layout, _countof( layout ) };
+			psDesc.pRootSignature = m_rootSignature;
+			psDesc.VS = CD3DX12_SHADER_BYTECODE( vsBlob );
+			psDesc.PS = CD3DX12_SHADER_BYTECODE( psBlob );
+			psDesc.RasterizerState = CD3DX12_RASTERIZER_DESC( D3D12_DEFAULT );
+			psDesc.BlendState = CD3DX12_BLEND_DESC( D3D12_DEFAULT );
+			psDesc.DepthStencilState.DepthEnable = FALSE;
+			psDesc.DepthStencilState.StencilEnable = FALSE;
+			psDesc.SampleMask = UINT_MAX;
+			psDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			psDesc.NumRenderTargets = 1;
+			psDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+			psDesc.SampleDesc.Count = 1;
+
 			hr = m_device->CreateGraphicsPipelineState( &psDesc, IID_PPV_ARGS( &m_pipelineState ) );
 			if( FAILED( hr ) )
 			{
@@ -498,7 +262,10 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				return VWB_ERROR_SHADER;
 			}
 			m_pipelineState->SetName( L"VWB_pipeline" );
+		}
 
+		// create command allocator and command list
+		{
 			hr = m_device->CreateCommandAllocator( D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS( &m_ca ) );
 			if( FAILED( hr ) )
 			{
@@ -514,41 +281,36 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 			}
 			m_cl->SetName( L"VWB_commandlist" );
 		}
+
 		// create and fill vertex buffer
 		{
 			FLOAT dx = 0.5f / m_sizeMap.cx;
 			FLOAT dy = 0.5f / m_sizeMap.cy;
 			SimpleVertex quad[] = {
+
 				{ {  1.0f + dx,  1.0f + dy, 0.5f }, { 1.0f, 0.0f } },
 				{ {  1.0f + dx, -1.0f - dy, 0.5f }, { 1.0f, 1.0f } },
 				{ { -1.0f - dx, -1.0f - dy, 0.5f }, { 0.0f, 1.0f } },
-				{ { -1.0f - dx, -1.0f - dy, 0.5f }, { 0.0f, 1.0f } },
-				{ { -1.0f - dx,  1.0f + dy, 0.5f }, { 0.0f, 0.0f } },
+
 				{ {  1.0f + dx,  1.0f + dy, 0.5f }, { 1.0f, 0.0f } },
+				{ { -1.0f - dx, -1.0f - dy, 0.5f }, { 0.0f, 1.0f } },
+				{ { -1.0f - dx,  1.0f + dy, 0.5f }, { 0.0f, 1.0f } },
 			};
+
 			hr = m_device->CreateCommittedResource(
-				&D3D12_HEAP_PROPERTIES( { 
-					D3D12_HEAP_TYPE_UPLOAD, 
-					D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-					D3D12_MEMORY_POOL_UNKNOWN,
-					1, 1 } ),
+				&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),
 				D3D12_HEAP_FLAG_NONE,
-				&D3D12_RESOURCE_DESC( {
-					D3D12_RESOURCE_DIMENSION_BUFFER,
-					0, sizeof( quad ), 1, 1, 1,
-					DXGI_FORMAT_UNKNOWN,
-					{1,0},
-					D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-					D3D12_RESOURCE_FLAG_NONE }),
+				&CD3DX12_RESOURCE_DESC::Buffer( sizeof( quad ) ),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
-				IID_PPV_ARGS( &m_vertexBuffer )
-			);
+				IID_PPV_ARGS( &m_vertexBuffer )	);
+
 			// Copy the triangle data to the vertex buffer.
 			UINT8* pVertexDataBegin;
-			D3D12_RANGE readRange = { 0, 0 };        // We do not intend to read from this resource on the CPU.
+			CD3DX12_RANGE readRange( 0, 0 );        // We do not intend to read from this resource on the CPU.
 			hr = m_vertexBuffer->Map( 0, &readRange, reinterpret_cast<void**>( &pVertexDataBegin ) );
 			memcpy( pVertexDataBegin, quad, sizeof( quad ) );
+			// our buffer is static, so we can Unmap
 			m_vertexBuffer->Unmap( 0, nullptr );
 
 			// Initialize the vertex buffer view.
@@ -561,37 +323,36 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 
 		// Create the constant buffer
 		{
-			UINT sz = ( ( sizeof( ConstantBuffer ) + 255 ) / 256 ) * 256;
+			UINT szA = sizeof( ConstantBuffer );
+			UINT sz = ( ( szA + 255 ) / 256 ) * 256;
 			hr = m_device->CreateCommittedResource(
-				&D3D12_HEAP_PROPERTIES( {
-					D3D12_HEAP_TYPE_UPLOAD,
-					D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-					D3D12_MEMORY_POOL_UNKNOWN,
-					1, 1 } ),
+					&CD3DX12_HEAP_PROPERTIES( D3D12_HEAP_TYPE_UPLOAD ),
 					D3D12_HEAP_FLAG_NONE,
-					&D3D12_RESOURCE_DESC( {
-						D3D12_RESOURCE_DIMENSION_BUFFER,
-						0, sz, 1, 1, 1,
-						DXGI_FORMAT_UNKNOWN,
-						{1,0},
-						D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-						D3D12_RESOURCE_FLAG_NONE } ),
-						D3D12_RESOURCE_STATE_GENERIC_READ,
-						nullptr,
-						IID_PPV_ARGS( &m_cb )
-						);
-			D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {
-				m_cb->GetGPUVirtualAddress(),
-				sz
-			};
-			m_device->CreateConstantBufferView(
-				&desc,
-				{ m_srvHeap->GetCPUDescriptorHandleForHeapStart().ptr }
-			);
+					&CD3DX12_RESOURCE_DESC::Buffer( sz ),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS( &m_cb )
+				);
+
+			if( SUCCEEDED( hr ) )
+			{
+				void* pData;
+				CD3DX12_RANGE readRange( 0, 0 );
+				m_cb->Map( 0, &readRange, &pData );
+				m_cbMap = pData;
+				memset( m_cbMap, 0, sizeof( ConstantBuffer ) );
+			}
+			else
+			{
+				logStr( 0, "ERROR: Could not create constant buffer: %08X\n", hr );
+				return VWB_ERROR_SHADER;
+			}
+
 			m_cb->SetName( L"VWB_constantbuffer" );
 		}
 
-		// create and fill textures
+		// create and fill textures, the staging textures are needed to be copied over to 
+		// the static GPU-only-access textures. We can release after executing the initialisation queue
 		std::vector<CComPtr<ID3D12Resource>> stagingTexs;
 		{
 			VWB_WarpBlend& wb = *wbs[calibIndex];
@@ -709,19 +470,17 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 				return VWB_ERROR_SHADER;
 			}
 
-			// Describe and create a SRVs for the texture.
-			ID3D12Resource* res[]{ m_cb, m_texWarp, m_texBlend, m_texBlack, m_texCur, m_texBB };
-			for( SIZE_T i = 1, s = m_device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV );
-				 i != ARRAYSIZE( res ); i++ )
+			// Describe and create a SRVs for the textures on srvHeap.
+			ID3D12Resource* textureRes[]{ m_texWarp, m_texBlend, m_texCur, m_texBlack };
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels = 1;
+			SIZE_T descSize = m_device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV );
+
+			for( SIZE_T i = 0; i != _countof( textureRes ); i++ )
 			{
-				if( nullptr != res[i] )
-				{
-					m_device->CreateShaderResourceView(
-						res[i],
-						NULL,  // use from texture
-						{ m_srvHeap->GetCPUDescriptorHandleForHeapStart().ptr + i * s }
-					);
-				}
+				m_device->CreateShaderResourceView( textureRes[i], NULL, { m_srvHeap->GetCPUDescriptorHandleForHeapStart().ptr + i * descSize }	);
 			}
 
 			D3D12_RESOURCE_BARRIER rBs[]{
@@ -766,7 +525,7 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 					}
 				},
 			};
-			m_cl->ResourceBarrier( ARRAYSIZE( rBs ), rBs );
+			m_cl->ResourceBarrier( _countof( rBs ), rBs );
 		}
 
 		// execute
@@ -826,7 +585,6 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 {
 	logStr( 5, "RenderDX12..." );
 
-	HRESULT res = E_FAIL;
 	if( VWB_STATEMASK_STANDARD == stateMask )
 		stateMask = VWB_STATEMASK_DEFAULT_D3D12;
 
@@ -839,30 +597,32 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	hr = m_cl->Reset( m_ca, m_pipelineState );
 
 	ID3D12Resource* rt = (ID3D12Resource*)in->renderTarget;
-	D3D12_RESOURCE_DESC desc = rt->GetDesc();
+	D3D12_RESOURCE_DESC descRT = rt->GetDesc();
 
 	if( nullptr == in->textureResource )
 	{
 
-		if( nullptr == m_texBB || desc.Width != m_texBB->GetDesc().Width )
+		if( nullptr == m_texBB || descRT.Width != m_texBB->GetDesc().Width )
 		{
 			// create tex#
 			hr = m_device->CreateCommittedResource(
 				&D3D12_HEAP_PROPERTIES( { D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 1, 1 } ),
 				D3D12_HEAP_FLAG_NONE,
-				&desc,
+				&descRT,
 				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 				nullptr,
 				IID_PPV_ARGS( &m_texBB ) );
 			SIZE_T base = m_srvHeap->GetCPUDescriptorHandleForHeapStart().ptr;
 			SIZE_T ds = m_device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV );
-			SIZE_T des = base + 5 * ds;
+			SIZE_T des = base + 4 * ds;
 			m_device->CreateShaderResourceView(
 				m_texBB,
 				nullptr,
 				{ des }
 			);
 			m_texBB->SetName( L"VWB_backbuffercopytexture" );
+			m_sizeIn.cx = (VWB_int)descRT.Width;
+			m_sizeIn.cy = (VWB_int)descRT.Height;
 		}
 
 		// prepare pipeline for copy
@@ -889,7 +649,7 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 				}
 			},
 		};
-		m_cl->ResourceBarrier( ARRAYSIZE( rB ), rB );
+		m_cl->ResourceBarrier( _countof( rB ), rB );
 
 		// issue copy
 		m_cl->CopyResource( m_texBB, rt );
@@ -899,7 +659,7 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 		rB[0].Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		rB[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 		rB[1].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		m_cl->ResourceBarrier( ARRAYSIZE( rB ), rB );
+		m_cl->ResourceBarrier( _countof( rB ), rB );
 	}
 	else
 	{
@@ -908,45 +668,28 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 			SAFERELEASE( m_texBB );
 			SIZE_T base = m_srvHeap->GetCPUDescriptorHandleForHeapStart().ptr;
 			SIZE_T ds = m_device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV );
-			SIZE_T des = base + 5 * ds;
+			SIZE_T des = base + 4 * ds;
 			hr = in->textureResource->QueryInterface( &m_texBB );
-			m_device->CreateShaderResourceView(
-				m_texBB,
-				nullptr,
-				{ des }
-			);
+			if( SUCCEEDED( hr ) )
+			{
+				m_device->CreateShaderResourceView(
+					m_texBB,
+					nullptr,
+					{ des }
+				);
+				D3D12_RESOURCE_DESC descIn = m_texBB->GetDesc();
+				m_sizeIn.cx = (VWB_int)descIn.Width;
+				m_sizeIn.cy = (VWB_int)descIn.Height;
+			}
 		}
-		//D3D12_RESOURCE_BARRIER rB[]
-		//{
-		//	{
-		//		D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-		//		D3D12_RESOURCE_BARRIER_FLAG_NONE,
-		//		D3D12_RESOURCE_TRANSITION_BARRIER{
-		//			(ID3D12Resource*)in->renderTarget,
-		//			D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-		//			D3D12_RESOURCE_STATE_PRESENT,
-		//			D3D12_RESOURCE_STATE_RENDER_TARGET
-		//		}
-		//	},
-		//	//{
-		//	//	D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-		//	//	D3D12_RESOURCE_BARRIER_FLAG_NONE,
-		//	//	D3D12_RESOURCE_TRANSITION_BARRIER{
-		//	//		(ID3D12Resource*)m_texBB,
-		//	//		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-		//	//		D3D12_RESOURCE_STATE_RENDER_TARGET | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		//	//		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-		//	//	}
-		//	//},
-		//};
-		//m_cl->ResourceBarrier( ARRAYSIZE(rB), rB );
 	}
 
-	// copy constants
+	// update constent buffer
+	if( m_cbMap )
 	{
-		// Copy the triangle data to the vertex buffer.
-		void* pData;
-		ConstantBuffer cb;
+		// the constant buffer is still mapped
+		// to avoid pipeline stall, we must not read (or perform operations on) that memory range
+		ConstantBuffer& cb = *reinterpret_cast<ConstantBuffer*>(m_cbMap);
 		memcpy( cb.matView, m_mVP.Transposed(), sizeof( cb.matView ) );
 		cb.border[0] = m_bBorder;
 		cb.border[1] = bDoNotBlend ? 0.0f : 1.0f;
@@ -972,22 +715,22 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 		cb.blackBias[1] = m_blackBias.y;
 		cb.blackBias[2] = m_blackBias.z;
 		cb.blackBias[3] = 0;
-
-		D3D12_RANGE readRange = { 0, 0 };        // We do not intend to read from this resource on the CPU.
-		hr = m_cb->Map( 0, &readRange, reinterpret_cast<void**>( &pData ) );
-		memcpy( pData, &cb, sizeof( cb ) );
-		m_cb->Unmap( 0, nullptr );
 	}
 
 	m_cl->SetGraphicsRootSignature( m_rootSignature );
-	m_cl->SetDescriptorHeaps( 1, &m_srvHeap );
-	m_cl->SetGraphicsRootDescriptorTable( 0, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-	const D3D12_VIEWPORT vp{ 0.0f, 0.0f, (FLOAT)desc.Width, (FLOAT)desc.Height, 0.0f, 1.0f };
+
+	ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap };
+	m_cl->SetDescriptorHeaps( _countof(ppHeaps) , ppHeaps );
+
+	m_cl->SetGraphicsRootConstantBufferView( 0, m_cb->GetGPUVirtualAddress() );
+	m_cl->SetGraphicsRootDescriptorTable( 1, m_srvHeap->GetGPUDescriptorHandleForHeapStart() );
+
+	const D3D12_VIEWPORT vp{ 0.0f, 0.0f, (FLOAT)descRT.Width, (FLOAT)descRT.Height, 0.0f, 1.0f };
 	m_cl->RSSetViewports( 1, &vp );
-	const D3D12_RECT sr{ 0, 0, (LONG)desc.Width, (LONG)desc.Height };
+	const D3D12_RECT sr{ 0, 0, (LONG)descRT.Width, (LONG)descRT.Height };
 	m_cl->RSSetScissorRects( 1, &sr );
 	const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ { in->rtvHandlePtr } };
-	m_cl->OMSetRenderTargets( ARRAYSIZE( rtvs ), rtvs, FALSE, nullptr );
+	m_cl->OMSetRenderTargets( _countof( rtvs ), rtvs, FALSE, nullptr );
 	if( VWB_STATEMASK_CLEARBACKBUFFER & stateMask )
 	{
 		if( in->rtvHandlePtr )
@@ -1001,9 +744,9 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 		}
 	}
 
-	m_cl->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 	m_cl->IASetVertexBuffers( 0, 1, &m_vertexBufferView );
-	m_cl->DrawInstanced( 3, 2, 0, 0 );
+	m_cl->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+	m_cl->DrawInstanced( 6, 1, 0, 0 );
 
 	// flag rt for present
 	D3D12_RESOURCE_BARRIER rB
@@ -1022,6 +765,6 @@ VWB_ERROR DX12WarpBlend::Render( VWB_param inputTexture, VWB_uint stateMask )
 	hr = m_cl->Close();
 	m_cq->ExecuteCommandLists( 1, (ID3D12CommandList*const*)&m_cl );
 
-	return SUCCEEDED( res ) ? VWB_ERROR_NONE : VWB_ERROR_GENERIC;
+	return SUCCEEDED( hr ) ? VWB_ERROR_NONE : VWB_ERROR_GENERIC;
 }
 #endif //ndef VWB_WIN7_COMPAT
