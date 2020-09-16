@@ -29,9 +29,11 @@ PSInput VSMain(float4 position : POSITION, float4 uv : TEXCOORD)
 {
     PSInput result;
 
+//    result.position = position;
     result.position = mul( position, matWorld );
     result.position = mul( result.position, matView );
     result.position = mul( result.position, matProj );
+   // result.position.xyz /= result.position.w;
     result.uv = uv;
 
     return result;

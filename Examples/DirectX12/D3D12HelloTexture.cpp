@@ -28,7 +28,8 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
     m_rtvDescriptorSize(0),
-    m_constantBufferMap( NULL )
+    m_constantBufferMap( NULL ),
+    m_rotY(0)
 {
 }
 
@@ -265,14 +266,24 @@ void D3D12HelloTexture::LoadAssets()
     // Create the vertex buffer.
     {
         // Define the geometry for a triangle.
-        Vertex triangleVertices[] =
+        m_vertexBufferData =
         {
-            { { 0.0f, 0.25f * m_aspectRatio, -1.0f }, { 0.5f, 0.0f } },
-            { { 0.25f, -0.25f * m_aspectRatio, -1.0f }, { 1.0f, 1.0f } },
-            { { -0.25f, -0.25f * m_aspectRatio, -1.0f }, { 0.0f, 1.0f } }
+            //{ { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 0.5f, 0.0f } },
+            //{ { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 1.0f, 1.0f } },
+            //{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f } }
+
+
+
+            { {   -1.0f, -1.0f,   3.0f }, { 0.0f, 0.0f } },
+            { {    1.0f, -1.0f,   4.0f }, { 1.0f, 1.0f } },
+            { {    1.0f, -1.0f,   3.0f }, { 1.0f, 0.0f } },
+
+            { {   -1.0f, -1.0f,   3.0f }, { 0.0f, 0.0f } },
+            { {   -1.0f, -1.0f,   4.0f }, { 0.0f, 1.0f } },
+            { {    1.0f, -1.0f,   4.0f }, { 1.0f, 1.0f } },
         };
 
-        const UINT vertexBufferSize = sizeof(triangleVertices);
+        const UINT vertexBufferSize = UINT(m_vertexBufferData.size() * sizeof( Vertex ));
 
         // Note: using upload heaps to transfer static data like vert buffers is not 
         // recommended. Every time the GPU needs it, the upload heap will be marshalled 
@@ -290,7 +301,7 @@ void D3D12HelloTexture::LoadAssets()
         UINT8* pVertexDataBegin;
         CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
+        memcpy(pVertexDataBegin, &m_vertexBufferData[0], vertexBufferSize );
         m_vertexBuffer->Unmap(0, nullptr);
 
         // Initialize the vertex buffer view.
@@ -318,7 +329,7 @@ void D3D12HelloTexture::LoadAssets()
 
         // just map the buffer and keep it mapped
         CD3DX12_RANGE readRange( 0, 0 );        // We do not intend to read from this resource on the CPU.
-        ThrowIfFailed( m_vertexBuffer->Map( 0, &readRange, reinterpret_cast<void**>( &m_constantBufferMap ) ) );
+        ThrowIfFailed( m_constantBuffer->Map( 0, &readRange, reinterpret_cast<void**>( &m_constantBufferMap ) ) );
         m_constantBufferMap->matWorld = XMMatrixIdentity();
     }
 
@@ -509,9 +520,12 @@ void D3D12HelloTexture::PopulateCommandList()
         m_constantBufferMap->matView = XMMatrixTranspose( v );
         m_constantBufferMap->matProj = XMMatrixTranspose( p );
     #else
-        m_constantBufferMap->matView = XMMatrixIdentity();
+        m_constantBufferMap->matView = XMMatrixRotationRollPitchYaw( m_rotY, m_rotY/10,0);
         m_constantBufferMap->matProj = XMMatrixPerspectiveLH( 0.25f, 0.25f / 16 * 9, 0.25f, 4096.0f );
-    };
+        m_rotY += 0.01f;
+        char buff[20];
+        sprintf_s( buff, "Yaw: %f", m_rotY );
+        ::SetWindowTextA( Win32Application::GetHwnd(), buff );
     #endif
 
     m_commandList->SetGraphicsRootDescriptorTable( 0, m_srvHeap->GetGPUDescriptorHandleForHeapStart() );
@@ -530,7 +544,8 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+
+    m_commandList->DrawInstanced((UINT)m_vertexBufferData.size(), 1, 0, 0);
 
     #ifndef USE_VIOSO_API
     // Indicate that the back buffer will now be used to present.

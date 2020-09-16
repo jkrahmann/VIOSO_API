@@ -71,10 +71,12 @@ private:
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
+    float m_rotY;
 
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
-    
+    std::vector<Vertex> m_vertexBufferData;
+
     ComPtr<ID3D12Resource> m_constantBuffer;
     ConstantBuffer* m_constantBufferMap;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
