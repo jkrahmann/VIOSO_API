@@ -7,6 +7,11 @@
 typedef void* VWB_param;	/// A versatile type to transfer an object pointer or integral number
 #ifdef WIN32
 typedef wchar_t VWB_wchar;	/// a 16bit unsignd integer
+#ifndef MAX_PATH
+#define MAX_PATH 260		/// define a maximum file path length, if not done by the OS SDK
+#elsif( MAX_PATH != 260 )
+#error MAX_PATH define mismatch
+#endif //ndef MAX_PATH
 #else
 typedef int16_t VWB_wchar;	/// a 16bit unsignd integer
 #define MAX_PATH 32768		/// define a maximum file path length, if not done by the OS SDK
