@@ -294,7 +294,7 @@ VWB_ERROR DX12WarpBlend::Init( VWB_WarpBlendSet& wbs )
 
 				{ {  1.0f + dx,  1.0f + dy, 0.5f }, { 1.0f, 0.0f } },
 				{ { -1.0f - dx, -1.0f - dy, 0.5f }, { 0.0f, 1.0f } },
-				{ { -1.0f - dx,  1.0f + dy, 0.5f }, { 0.0f, 1.0f } },
+				{ { -1.0f - dx,  1.0f + dy, 0.5f }, { 0.0f, 0.0f } },
 			};
 
 			hr = m_device->CreateCommittedResource(
